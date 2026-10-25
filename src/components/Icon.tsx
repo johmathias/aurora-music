@@ -80,6 +80,12 @@ const icons: Record<string, ReactNode> = {
       <path d="M7.5 8.8h9M7.5 12.4h5.5" stroke="var(--np-cut, #000)" strokeWidth="1.9" strokeLinecap="round" fill="none" />
     </g>
   ),
+  airpods: (
+    <g fill="currentColor" stroke="none">
+      <path d="M8.2 3C5.9 3 4.2 4.8 4.2 7.1c0 1.9 1.1 3.3 2.6 3.8v8.1c0 .8.6 1.4 1.3 1.4s1.3-.6 1.3-1.4V7.2C9.4 6.1 9 5.2 8.2 5.2z" />
+      <path d="M15.8 3c2.3 0 4 1.8 4 4.1 0 1.9-1.1 3.3-2.6 3.8v8.1c0 .8-.6 1.4-1.3 1.4s-1.3-.6-1.3-1.4V7.2c0-1.1.4-2 1.2-2z" />
+    </g>
+  ),
   airplay: (
     <g {...S} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6.6 17H5.5A2.5 2.5 0 013 14.5v-9A2.5 2.5 0 015.5 3h13A2.5 2.5 0 0121 5.5v9a2.5 2.5 0 01-2.5 2.5h-1.1" />

@@ -109,6 +109,7 @@ function Volume() {
 function Footer() {
   const mode = useUi((s) => s.nowPlayingMode);
   const airplay = usePlayer((s) => s.airplay);
+  const wireless = usePlayer((s) => s.wireless);
   const shuffle = usePlayer((s) => s.shuffle);
   const repeat = usePlayer((s) => s.repeat);
   const badge = shuffle ? 'shuffle' : repeat === 'one' ? 'repeat1' : repeat === 'all' ? 'repeat' : null;
@@ -118,13 +119,14 @@ function Footer() {
         <Icon name={mode === 'lyrics' ? 'lyrics-fill' : 'lyrics'} size={26} />
       </button>
       {airplay === 'available' ? (
-        <button className="np-foot-btn" aria-label="Choose where to play (AirPlay)" onClick={showAirPlayPicker}>
-          <Icon name="airplay" size={28} />
+        <button className={`np-foot-btn route${wireless ? ' on-device' : ''}`} aria-label={wireless ? 'Playing on a wireless device. Choose where to play' : 'Choose where to play (AirPlay)'} onClick={showAirPlayPicker}>
+          <Icon name={wireless ? 'airpods' : 'airplay'} size={wireless ? 26 : 28} />
+          {wireless ? <span className="route-name">Wireless</span> : null}
         </button>
       ) : (
         <span />
       )}
-      <button className="np-foot-btn queue" aria-label="Queue" onClick={() => sheets.open({ type: 'queue' })}>
+      <button className="np-foot-btn foot-queue" aria-label="Queue" onClick={() => sheets.open({ type: 'queue' })}>
         <Icon name="queue" size={26} />
         {badge ? (
           <span className="np-badge" aria-hidden="true">
@@ -168,10 +170,10 @@ function Meta({ track, compact }: { track: Track; compact?: boolean }) {
         <Marquee text={track.artist} className="np-artist" />
       </div>
       <button className={`np-circle${track.favorite ? ' on' : ''}`} aria-pressed={track.favorite} aria-label={track.favorite ? 'Remove from Favorites' : 'Favorite'} onClick={() => toggleFavorite(track.id)}>
-        <Icon name={track.favorite ? 'star-fill' : 'star'} size={22} />
+        <Icon name={track.favorite ? 'star-fill' : 'star'} size={17} />
       </button>
       <button className="np-circle" aria-label="More options" onClick={() => openNowPlayingMenu(track)}>
-        <Icon name="more" size={22} />
+        <Icon name="more" size={17} />
       </button>
     </div>
   );

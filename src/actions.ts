@@ -52,7 +52,7 @@ export async function removeFromLibrary(ids: string[]): Promise<boolean> {
 export function openTrackMenu(track: Track, ctx: { playlistId?: string; position?: number } = {}): void {
   const items: MenuItem[] = [
     { label: 'Play Next', icon: 'play-next', onSelect: () => playNext([track.id]) },
-    { label: 'Add to Queue', icon: 'add-queue', onSelect: () => addToQueue([track.id]) },
+    { label: 'Play Last', icon: 'add-queue', onSelect: () => addToQueue([track.id]) },
     { label: 'Add to Playlist…', icon: 'add-playlist', onSelect: () => sheets.open({ type: 'addToPlaylist', trackIds: [track.id] }) },
     {
       label: track.favorite ? 'Remove from Favorites' : 'Favorite',
@@ -78,7 +78,7 @@ export function openAlbumMenu(album: Album): void {
     subtitle: album.artist,
     items: [
       { label: 'Play Next', icon: 'play-next', onSelect: () => playNext(album.trackIds) },
-      { label: 'Add to Queue', icon: 'add-queue', onSelect: () => addToQueue(album.trackIds) },
+      { label: 'Play Last', icon: 'add-queue', onSelect: () => addToQueue(album.trackIds) },
       { label: 'Add to Playlist…', icon: 'add-playlist', onSelect: () => sheets.open({ type: 'addToPlaylist', trackIds: album.trackIds }) },
       { label: 'Change Artwork…', icon: 'photo', onSelect: () => sheets.open({ type: 'editTrack', trackId: album.trackIds[0] }) },
       { label: 'Go to Artist', icon: 'person', onSelect: () => goTo({ kind: 'artist', key: artistKey(album.artist) }) },
@@ -97,7 +97,7 @@ export function openPlaylistMenu(p: Playlist, after?: () => void): void {
       { label: 'Play', icon: 'play', disabled: !ids.length, onSelect: () => playPlaylist(p) },
       { label: 'Shuffle', icon: 'shuffle', disabled: !ids.length, onSelect: () => playPlaylist(p, true) },
       { label: 'Play Next', icon: 'play-next', disabled: !ids.length, onSelect: () => playNext(ids) },
-      { label: 'Add to Queue', icon: 'add-queue', disabled: !ids.length, onSelect: () => addToQueue(ids) },
+      { label: 'Play Last', icon: 'add-queue', disabled: !ids.length, onSelect: () => addToQueue(ids) },
       {
         label: p.favorite ? 'Remove from Favorites' : 'Favorite',
         icon: p.favorite ? 'heart-fill' : 'heart',

@@ -3,6 +3,8 @@
 import { Artwork, CollageArt } from './Artwork';
 import { Icon } from './Icon';
 import { nav } from '../store/ui';
+import { openAlbumMenu, openPlaylistMenu } from '../actions';
+import { useLongPress } from '../hooks';
 import { library, playlistArtIds, playlistTrackIds, useLibrary } from '../store/library';
 import { placeholderBackground } from '../lib/artwork';
 import { plural } from '../lib/format';
@@ -12,8 +14,9 @@ import type { Album, Artist, Genre, Playlist, Track } from '../types';
 export type CardSize = 'sm' | 'md' | 'lg';
 
 export function AlbumCard({ album, size = 'md' }: { album: Album; size?: CardSize }) {
+  const press = useLongPress(() => openAlbumMenu(album));
   return (
-    <button className={`card ${size}`} onClick={() => nav.push({ kind: 'album', key: album.key })}>
+    <button {...press} className={`card ${size}`} onClick={() => nav.push({ kind: 'album', key: album.key })}>
       <Artwork artId={album.artId} seed={album.title + album.artist} kind={size === 'lg' ? 'full' : 'thumb'} />
       <div className="card-title">{album.title}</div>
       <div className="card-sub">{album.artist}</div>
@@ -39,8 +42,9 @@ export function PlaylistArt({ playlist, kind = 'thumb', className = '' }: { play
 
 export function PlaylistCard({ playlist, size = 'md', onClick }: { playlist: Playlist; size?: CardSize; onClick?: () => void }) {
   const count = playlistTrackIds(playlist).length;
+  const press = useLongPress(() => openPlaylistMenu(playlist));
   return (
-    <button className={`card ${size}`} onClick={onClick ?? (() => nav.push({ kind: 'playlist', id: playlist.id }))}>
+    <button {...press} className={`card ${size}`} onClick={onClick ?? (() => nav.push({ kind: 'playlist', id: playlist.id }))}>
       <PlaylistArt playlist={playlist} kind={size === 'lg' ? 'full' : 'thumb'} />
       <div className="card-title">{playlist.name}</div>
       <div className="card-sub">{playlist.kind === 'mix' ? 'Mix' : plural(count, 'song')}</div>

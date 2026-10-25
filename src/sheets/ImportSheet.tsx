@@ -8,9 +8,29 @@ import { installSamples } from '../lib/samples';
 import { storageInfo, type StorageInfo } from '../lib/db';
 import { formatBytes, plural } from '../lib/format';
 import { showToast, sheets } from '../store/ui';
-import { useLibrary } from '../store/library';
+import { library, saveLyrics, useLibrary } from '../store/library';
 
-const ACCEPT = 'audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.oga,.opus,.aif,.aiff,.caf';
+// No "accept" list on the picker: iPhone greys out file types it does not know (like .lrc).
+const isLyricsFile = (f: File) => /\.(lrc|txt)$/i.test(f.name);
+const stem = (name: string) => name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+/** Attaches picked .lrc/.txt files to songs whose file name or title matches. Returns [attached, notMatched]. */
+async function attachLyrics(files: File[]): Promise<[number, string[]]> {
+  const tracks = library.get().tracks;
+  let attached = 0;
+  const missed: string[] = [];
+  for (const f of files) {
+    if (f.size > 500_000) { missed.push(f.name); continue; }
+    const key = stem(f.name);
+    const hit = tracks.find((t) => stem(t.fileName) === key) ?? tracks.find((t) => stem(t.title) === key) ?? tracks.find((t) => stem(`${t.artist} ${t.title}`) === key || stem(`${t.title} ${t.artist}`) === key);
+    if (!hit) { missed.push(f.name); continue; }
+    const text = await f.text();
+    if (text.includes('\u0000') || !text.trim()) { missed.push(f.name); continue; }
+    await saveLyrics(hit.id, text, 'imported');
+    attached++;
+  }
+  return [attached, missed];
+}
 
 // Songs dropped onto the window (desktop) wait here until the sheet opens.
 let pendingFiles: File[] | null = null;
@@ -41,18 +61,27 @@ export function ImportSheet({ sid }: { sid: number }) {
   const refreshStorage = () => void storageInfo().then(setStorage);
   useEffect(refreshStorage, []);
 
-  const run = async (files: File[]) => {
-    if (!files.length) return;
+  const run = async (picked: File[]) => {
+    if (!picked.length) return;
+    const lyricsFiles = picked.filter(isLyricsFile);
+    const files = picked.filter((f) => !isLyricsFile(f));
     setPhase('working');
     setItems([]);
-    const result = await importFiles(files, setItems);
+    const result = files.length ? await importFiles(files, setItems) : { added: 0, duplicates: 0, failed: 0, stoppedForSpace: false };
     setSummary(result);
     setPhase('done');
     refreshStorage();
-    showToast(
-      result.added ? `${plural(result.added, 'song')} added to your library` : result.duplicates && !result.failed ? 'Those songs were already in your library' : 'No songs were added',
-      result.added ? 'success' : 'info',
-    );
+    let lyricsNote = '';
+    let lyricsOk = false;
+    if (lyricsFiles.length) {
+      const [attached, missed] = await attachLyrics(lyricsFiles);
+      lyricsOk = attached > 0;
+      lyricsNote = attached
+        ? `${plural(attached, 'lyrics file')} attached${missed.length ? `, ${missed.length} had no matching song` : ''}`
+        : 'No song matched that lyrics file name. Rename it to match the song file, or add it from the song’s lyrics screen.';
+    }
+    const songNote = result.added ? `${plural(result.added, 'song')} added` : result.duplicates && !result.failed ? 'Those songs were already in your library' : files.length ? 'No songs were added' : '';
+    showToast([songNote, lyricsNote].filter(Boolean).join('. '), result.added || lyricsOk ? 'success' : files.length ? 'info' : 'error');
   };
 
   useEffect(() => {
@@ -85,7 +114,6 @@ export function ImportSheet({ sid }: { sid: number }) {
       <input
         ref={fileInput}
         type="file"
-        accept={ACCEPT}
         multiple
         hidden
         onChange={(e) => {
@@ -137,6 +165,10 @@ export function ImportSheet({ sid }: { sid: number }) {
             <li>
               <Icon name="check" size={16} />
               <span>MP3, M4A, AAC and WAV work best. Some other formats may not play on iPhone.</span>
+            </li>
+            <li>
+              <Icon name="check" size={16} />
+              <span>Pick <b>.lrc</b> lyrics files together with the songs. They attach to the song with the same name.</span>
             </li>
             <li>
               <Icon name="check" size={16} />

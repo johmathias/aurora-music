@@ -72,10 +72,11 @@ try {
   await page.waitForSelector('.sheet');
   await wait(500);
   await shot('03-import-sheet');
-  await page.locator('.sheet input[type=file]').first().setInputFiles(files);
+  await page.locator('.sheet input[type=file]').first().setInputFiles([...files, lrc]);
   await page.waitForSelector('.import-list li.done', { timeout: 20000 });
   await wait(1500);
   await shot('04-import-done');
+  ok(await page.getByText(/1 lyrics file attached/).count(), 'a .lrc picked with the songs is attached by name');
   const done = await page.locator('.import-list li.done').count();
   ok(done === 3, `imported 3 songs (got ${done})`);
   // importing the same files again must be detected as duplicates
@@ -113,6 +114,22 @@ try {
   await wait(800);
   const hasImg = await page.locator('.tab-host.active .screen:not([inert]) .row-art img.loaded').count();
   ok(hasImg >= 1, 'uploaded artwork shows on the song row');
+
+  // ---- long press and swipe on a song row ----
+  const rowBox = await page.locator('.tab-host.active .screen:not([inert]) .row[role=button]').nth(1).boundingBox();
+  if (rowBox) {
+    const x = rowBox.x + 120, y = rowBox.y + rowBox.height / 2;
+    await page.mouse.move(x, y); await page.mouse.down(); await wait(800); await page.mouse.up();
+    await wait(300);
+    ok(await page.getByRole('menuitem', { name: 'Play Next' }).count(), 'long-press opens the song menu');
+    await shot('09c-long-press-menu');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await wait(300);
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y, { steps: 4 }); await page.mouse.move(x + 150, y, { steps: 4 });
+    await shot('09d-swipe');
+    await page.mouse.up(); await wait(300);
+    ok(await page.getByText(/will play next/).count(), 'swipe right queues the song to play next');
+  }
 
   // ---- play ----
   await page.locator('.tab-host.active .screen:not([inert]) .row[role=button]', { hasText: 'Blue Hour' }).first().click();

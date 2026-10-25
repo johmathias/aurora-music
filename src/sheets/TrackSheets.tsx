@@ -256,7 +256,7 @@ function LyricsForm({ trackId }: { trackId: string }) {
           <span>Nothing entered yet</span>
         )}
       </div>
-      <input ref={file} type="file" accept=".lrc,.txt,text/plain" hidden onChange={(e) => void readFile(e.target.files?.[0]).then(() => (e.target.value = ''))} />
+      <input ref={file} type="file" hidden onChange={(e) => void readFile(e.target.files?.[0]).then(() => (e.target.value = ''))} />
       <div className="stack">
         <button className="btn-pill block" onClick={() => file.current?.click()}>
           <Icon name="import" size={19} />

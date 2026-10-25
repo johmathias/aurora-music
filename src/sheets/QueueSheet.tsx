@@ -46,7 +46,7 @@ export function QueueSheet({ sid }: { sid: number }) {
   return (
     <Sheet sid={sid} title="Queue" large right={{ label: 'Done' }}>
       {!queue.length || !current ? (
-        <EmptyState icon="queue" title="The queue is empty" text="Play a song, or choose “Play Next” or “Add to Queue” from a song’s menu." />
+        <EmptyState icon="queue" title="The queue is empty" text="Play a song, or choose “Play Next” or “Play Last” from a song’s menu." />
       ) : (
         <div className="queue">
           <div className="queue-tools">

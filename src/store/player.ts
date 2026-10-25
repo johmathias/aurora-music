@@ -22,6 +22,7 @@ export interface PlayerState {
   canSetVolume: boolean;
   volume: number;
   airplay: 'unsupported' | 'available' | 'unavailable';
+  wireless: boolean;
 }
 
 export const player = createStore<PlayerState>({
@@ -35,6 +36,7 @@ export const player = createStore<PlayerState>({
   canSetVolume: false,
   volume: 1,
   airplay: 'unsupported',
+  wireless: false,
 });
 
 export const usePlayer = <S,>(selector: (s: PlayerState) => S) => useStore(player, selector);
@@ -524,6 +526,9 @@ export function showAirPlayPicker(): void {
   }
   if (typeof (audio as AirPlayAudio).webkitShowPlaybackTargetPicker === 'function') {
     player.set({ airplay: 'unavailable' });
+    audio.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', () => {
+      player.set({ wireless: !!(audio as HTMLAudioElement & { webkitCurrentPlaybackTargetIsWireless?: boolean }).webkitCurrentPlaybackTargetIsWireless });
+    });
     audio.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
       const availability = (e as Event & { availability?: string }).availability;
       player.set({ airplay: availability === 'available' ? 'available' : 'unavailable' });
