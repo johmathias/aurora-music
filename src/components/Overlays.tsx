@@ -1,6 +1,7 @@
 // Things that float above the app: action menus, confirmation alerts, toasts, the offline pill.
 
 import { useEffect, useRef } from 'react';
+import { Artwork } from './Artwork';
 import { Icon } from './Icon';
 import { closeMenu, dismissToast, useUi } from '../store/ui';
 
@@ -20,9 +21,12 @@ export function MenuHost() {
       <div className="menu-backdrop" onClick={closeMenu} />
       <div ref={ref} className="menu glass" role="menu" aria-label={menu.title ?? 'Actions'} tabIndex={-1}>
         {menu.title ? (
-          <div className="menu-head">
-            <div className="menu-title">{menu.title}</div>
-            {menu.subtitle ? <div className="menu-sub">{menu.subtitle}</div> : null}
+          <div className={`menu-head${menu.art ? ' with-art' : ''}`}>
+            {menu.art ? <div className="menu-art"><Artwork artId={menu.art.artId} seed={menu.art.seed} /></div> : null}
+            <div className="menu-head-text">
+              <div className="menu-title">{menu.title}</div>
+              {menu.subtitle ? <div className="menu-sub">{menu.subtitle}</div> : null}
+            </div>
           </div>
         ) : null}
         <div className="menu-items">

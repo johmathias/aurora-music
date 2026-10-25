@@ -37,6 +37,7 @@ export function AlbumScreen({ albumKey }: { albumKey: string }) {
   return (
     <Screen title={album.title} large={false} actions={<MoreButton label="Album options" onClick={() => openAlbumMenu(album)} />}>
       <div className="detail-head">
+        <div className="detail-bg" aria-hidden="true"><Artwork artId={album.artId} seed={album.title + album.artist} /></div>
         <div className="detail-art"><Artwork artId={album.artId} seed={album.title + album.artist} kind="full" /></div>
         <h1 className="detail-title">{album.title}</h1>
         <button className="detail-link" onClick={() => nav.push({ kind: 'artist', key: artistKey(album.artist) })}>{album.artist}</button>
@@ -63,6 +64,7 @@ export function ArtistScreen({ artistKeyValue }: { artistKeyValue: string }) {
   return (
     <Screen title={artist.name} large={false}>
       <div className="detail-head artist">
+        <div className="detail-bg" aria-hidden="true"><Artwork artId={artist.artId} seed={artist.name} /></div>
         <div className="detail-art round"><Artwork artId={artist.artId} seed={artist.name} kind="full" round initial={artist.name} /></div>
         <h1 className="detail-title">{artist.name}</h1>
         <p className="detail-meta">{plural(albums.length, 'album')} · {plural(tracks.length, 'song')}</p>

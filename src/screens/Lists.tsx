@@ -1,11 +1,15 @@
 // List screens: Songs (and its smart variants), Albums, Artists, Genres, Playlists.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Artwork } from '../components/Artwork';
 import { AlbumCard, GenreTile, PlaylistArt } from '../components/Cards';
 import { Icon } from '../components/Icon';
 import { EmptyState, Screen } from '../components/Screen';
 import { TrackList } from '../components/TrackList';
+import { forgetArtwork, processArtwork } from '../lib/artwork';
+import { store } from '../lib/db';
+import { updateTrack } from '../store/library';
+import { toastError, showToast } from '../store/ui';
 import { favoriteMany, openPlaylistMenu, playList, removeFromLibrary } from '../actions';
 import { formatBytes, normalize, plural } from '../lib/format';
 import { favorites, importedTracks, mostPlayed, recentlyAdded, recentlyPlayed } from '../lib/smart';
@@ -99,6 +103,17 @@ export function SongsScreen({ source }: { source: SongSource }) {
     setSelected(new Set());
   };
   const chosen = Array.from(selected);
+  const artInput = useRef<HTMLInputElement>(null);
+  const applyArtwork = async (file: File | undefined) => {
+    if (!file || !chosen.length) return;
+    const rec = await processArtwork(file, file.type || 'image/jpeg');
+    if (!rec) return toastError('That picture could not be read. Try a JPG or PNG.');
+    await store.put('artwork', rec);
+    forgetArtwork(rec.id);
+    chosen.forEach((id) => updateTrack(id, { artId: rec.id }));
+    showToast(`Artwork set for ${plural(chosen.length, 'song')}`, 'success');
+    stopSelecting();
+  };
 
   const actions = (
     <>
@@ -151,6 +166,8 @@ export function SongsScreen({ source }: { source: SongSource }) {
         <div className="select-bar glass" role="toolbar" aria-label="Actions for selected songs">
           <span className="select-count">{chosen.length ? plural(chosen.length, 'song') : 'Select songs'}</span>
           <button disabled={!chosen.length} aria-label="Add to playlist" onClick={() => sheets.open({ type: 'addToPlaylist', trackIds: chosen })}><Icon name="add-playlist" size={24} /></button>
+          <button disabled={!chosen.length} aria-label="Set artwork" onClick={() => artInput.current?.click()}><Icon name="photo" size={24} /></button>
+          <input ref={artInput} type="file" accept="image/*" hidden onChange={(e) => void applyArtwork(e.target.files?.[0]).then(() => (e.target.value = ''))} />
           <button disabled={!chosen.length} aria-label="Play next" onClick={() => { playNext(chosen); stopSelecting(); }}><Icon name="play-next" size={24} /></button>
           <button disabled={!chosen.length} aria-label="Favorite" onClick={() => { favoriteMany(chosen); stopSelecting(); }}><Icon name="heart" size={24} /></button>
           <button disabled={!chosen.length} className="danger" aria-label="Remove from library" onClick={async () => { if (await removeFromLibrary(chosen)) stopSelecting(); }}><Icon name="trash" size={24} /></button>

@@ -19,3 +19,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     });
   });
 }
+
+// Lock pinch-zoom and double-tap zoom so it behaves like an app, not a web page.
+['gesturestart', 'gesturechange', 'gestureend'].forEach((name) => document.addEventListener(name, (e) => e.preventDefault()));
+let lastTouch = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouch < 300) e.preventDefault();
+  lastTouch = now;
+}, { passive: false });

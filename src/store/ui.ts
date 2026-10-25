@@ -46,6 +46,7 @@ export interface MenuItem {
 export interface MenuDef {
   title?: string;
   subtitle?: string;
+  art?: { artId?: string; seed: string };
   items: MenuItem[];
 }
 

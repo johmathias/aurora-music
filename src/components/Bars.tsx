@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { Artwork } from './Artwork';
 import { Icon } from './Icon';
-import { next, toggle, useCurrentTrack, usePlaybackDuration, usePlaybackSecond, usePlayer } from '../store/player';
+import { next, previous, toggle, useCurrentTrack, usePlaybackDuration, usePlaybackSecond, usePlayer } from '../store/player';
 import { rememberSearch } from '../store/prefs';
 import { useStore } from '../store/createStore';
 import { searchText } from '../store/search';
@@ -119,6 +119,8 @@ function MiniProgress() {
 }
 
 export function MiniPlayer() {
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
   const track = useCurrentTrack();
   const playing = usePlayer((s) => s.playing);
   const loading = usePlayer((s) => s.loading);
@@ -129,7 +131,22 @@ export function MiniPlayer() {
       role="button"
       tabIndex={0}
       aria-label={`Now playing: ${track.title} by ${track.artist}. Open player.`}
-      onClick={() => nowPlaying.open()}
+      onPointerDown={(e) => {
+        swipe.current = { x: e.clientX, y: e.clientY };
+        moved.current = false;
+      }}
+      onPointerUp={(e) => {
+        const s0 = swipe.current;
+        swipe.current = null;
+        if (!s0) return;
+        const dx = e.clientX - s0.x;
+        const dy = e.clientY - s0.y;
+        // swipe up: open the player. swipe sideways: previous / next song (like Apple Music)
+        if (dy < -30 && Math.abs(dy) > Math.abs(dx)) { moved.current = true; nowPlaying.open(); }
+        else if (dx < -50 && Math.abs(dx) > Math.abs(dy)) { moved.current = true; next(); }
+        else if (dx > 50 && Math.abs(dx) > Math.abs(dy)) { moved.current = true; previous(); }
+      }}
+      onClick={() => { if (!moved.current) nowPlaying.open(); moved.current = false; }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') nowPlaying.open();
       }}

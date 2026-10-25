@@ -23,7 +23,13 @@ export function Screen({ title, eyebrow, root, large = true, actions, children, 
   const backLabel = useContext(BackLabelContext);
   return (
     <>
-      <div className={`nav-bar${scrolled ? ' scrolled' : ''}`}>
+      <div
+        className={`nav-bar${scrolled ? ' scrolled' : ''}`}
+        onClick={(e) => {
+          // like tapping the top of an iPhone screen: jump back to the top
+          if (!(e.target as HTMLElement).closest('button')) (e.currentTarget.nextElementSibling as HTMLElement | null)?.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      >
         {!root ? (
           <button className="nav-back" onClick={nav.pop} aria-label={`Back to ${backLabel}`}>
             <Icon name="chevron-left" size={22} />

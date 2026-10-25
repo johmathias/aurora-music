@@ -23,6 +23,8 @@ export interface PlayerState {
   volume: number;
   airplay: 'unsupported' | 'available' | 'unavailable';
   wireless: boolean;
+  sleepAt: number | null;
+  sleepEnd: boolean;
 }
 
 export const player = createStore<PlayerState>({
@@ -37,6 +39,8 @@ export const player = createStore<PlayerState>({
   volume: 1,
   airplay: 'unsupported',
   wireless: false,
+  sleepAt: null,
+  sleepEnd: false,
 });
 
 export const usePlayer = <S,>(selector: (s: PlayerState) => S) => useStore(player, selector);
@@ -253,8 +257,20 @@ audio.addEventListener('pause', () => {
   syncMediaState();
   saveNow();
 });
+let kickPending = false;
 audio.addEventListener('playing', () => {
   if (isSilent()) return;
+  if (kickPending) {
+    // Some iPhones start the next song with the picture moving but no sound. A tiny pause/play wakes the output.
+    kickPending = false;
+    const uid = loadedUid;
+    window.setTimeout(() => {
+      if (uid === loadedUid && player.get().playing && !audio.paused) {
+        audio.pause();
+        void audio.play().catch(() => undefined);
+      }
+    }, 350);
+  }
   player.set({ playing: true, loading: false });
   const track = currentTrack();
   if (track && !startRecorded) {
@@ -293,6 +309,11 @@ audio.addEventListener('timeupdate', () => {
 });
 audio.addEventListener('ended', () => {
   if (isSilent()) return;
+  if (player.get().sleepEnd) {
+    player.set({ sleepEnd: false, sleepAt: null, playing: false });
+    return;
+  }
+  kickPending = true;
   advance(true);
 });
 audio.addEventListener('error', () => {
@@ -516,11 +537,27 @@ export function showAirPlayPicker(): void {
   (audio as AirPlayAudio).webkitShowPlaybackTargetPicker?.();
 }
 
+let sleepTimer: number | undefined;
+/** Sleep timer: stop after some minutes, or at the end of the current song. Pass null to cancel. */
+export function setSleepTimer(setting: number | 'end' | null): void {
+  window.clearTimeout(sleepTimer);
+  if (setting === null) return void player.set({ sleepAt: null, sleepEnd: false });
+  if (setting === 'end') return void player.set({ sleepAt: null, sleepEnd: true });
+  player.set({ sleepAt: Date.now() + setting * 60000, sleepEnd: false });
+  sleepTimer = window.setTimeout(() => {
+    audio.pause();
+    player.set({ sleepAt: null, playing: false });
+    showToast('Sleep timer: music stopped', 'info');
+  }, setting * 60000);
+}
+
 (function detectOutputs() {
   try {
     const probe = new Audio();
     probe.volume = 0.37;
-    player.set({ canSetVolume: Math.abs(probe.volume - 0.37) < 0.01 }); // false on iPhone
+    const iPhone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // iPhone ignores the volume of web audio, so a slider there would do nothing. Hide it.
+    player.set({ canSetVolume: !iPhone && Math.abs(probe.volume - 0.37) < 0.01 });
   } catch {
     /* leave false */
   }

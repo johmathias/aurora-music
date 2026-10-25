@@ -13,8 +13,8 @@ import { formatTime } from '../lib/format';
 import { artistKey, trackAlbumKey } from '../lib/indexing';
 import { toggleFavorite } from '../store/library';
 import {
-  getPosition, next, previous, seekTo, setVolume, showAirPlayPicker, toggle,
-  useCurrentTrack, usePlaybackDuration, usePlaybackSecond, usePlayer,
+  getPosition, next, previous, seekTo, setSleepTimer, setVolume, showAirPlayPicker, toggle,
+  player, useCurrentTrack, usePlaybackDuration, usePlaybackSecond, usePlayer,
 } from '../store/player';
 import { usePrefs } from '../store/prefs';
 import { nowPlaying, openMenu, sheets, useUi } from '../store/ui';
@@ -138,6 +138,18 @@ function Footer() {
   );
 }
 
+function openSleepMenu() {
+  const on = player.get().sleepAt !== null || player.get().sleepEnd;
+  openMenu({
+    title: 'Sleep Timer',
+    items: [
+      ...[15, 30, 45, 60].map((m) => ({ label: `${m} minutes`, icon: 'clock', onSelect: () => setSleepTimer(m) })),
+      { label: 'End of this song', icon: 'note', onSelect: () => setSleepTimer('end') },
+      ...(on ? [{ label: 'Turn Off Timer', icon: 'close', destructive: true, onSelect: () => setSleepTimer(null) }] : []),
+    ],
+  });
+}
+
 function openNowPlayingMenu(track: Track) {
   const canShare = typeof navigator.share === 'function';
   openMenu({
@@ -148,6 +160,7 @@ function openNowPlayingMenu(track: Track) {
       { label: 'Go to Album', icon: 'album', onSelect: () => goTo({ kind: 'album', key: trackAlbumKey(track) }) },
       { label: 'Go to Artist', icon: 'person', onSelect: () => goTo({ kind: 'artist', key: artistKey(track.artist) }) },
       { label: track.hasLyrics ? 'Edit Lyrics' : 'Add Lyrics', icon: 'lyrics', onSelect: () => sheets.open({ type: 'lyricsEditor', trackId: track.id }) },
+      { label: 'Sleep Timer…', icon: 'clock', onSelect: openSleepMenu },
       { label: 'Song Info', icon: 'info', onSelect: () => sheets.open({ type: 'trackInfo', trackId: track.id }) },
       ...(canShare
         ? [{ label: 'Share Song Info', icon: 'share', onSelect: () => void navigator.share({ title: track.title, text: `${track.title} by ${track.artist}${track.album ? ` (${track.album})` : ''}` }).catch(() => undefined) }]

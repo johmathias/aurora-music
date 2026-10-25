@@ -10,7 +10,7 @@ import { Screen, SettingsButton, EmptyState } from '../components/Screen';
 import { TrackList } from '../components/TrackList';
 import { playList } from '../actions';
 import { normalize, plural } from '../lib/format';
-import { searchLibrary } from '../lib/smart';
+import { recentlyPlayed, searchLibrary } from '../lib/smart';
 import { useLibrary } from '../store/library';
 import { forgetSearch, rememberSearch, usePrefs } from '../store/prefs';
 import { nav, type Route } from '../store/ui';
@@ -23,6 +23,7 @@ export function Search() {
   const deferred = useDeferredValue(query);
   const results = useMemo(() => searchLibrary(lib, deferred), [lib, deferred]);
   const searching = normalize(query).length > 0;
+  const recentSongs = useMemo(() => recentlyPlayed(lib).slice(0, 5), [lib]);
   const total = results.songs.length + results.artists.length + results.albums.length + results.playlists.length + results.genres.length;
 
   const open = (route: Route) => {
@@ -59,6 +60,13 @@ export function Search() {
                   </button>
                 </div>
               ))}
+            </div>
+          ) : null}
+
+          {recentSongs.length ? (
+            <div className="section first">
+              <div className="section-head"><h2>Recently Played</h2></div>
+              <TrackList tracks={recentSongs} sub="both" onPlay={(i) => playList(recentSongs.map((t) => t.id), { from: i })} />
             </div>
           ) : null}
 

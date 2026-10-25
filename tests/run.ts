@@ -45,7 +45,7 @@ try {
     await wait(250);
   }
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
-  const context = await browser.newContext({ viewport: { width: 414, height: 896 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, serviceWorkers: 'allow' });
+  const context = await browser.newContext({ viewport: { width: 414, height: 896 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, serviceWorkers: 'allow', colorScheme: process.env.DARK ? 'dark' : 'light' });
   const page = await context.newPage();
   const errors: string[] = [];
   page.on('pageerror', (e: Error) => errors.push(e.message));
@@ -245,7 +245,7 @@ try {
   await tabTo('Home');
   await wait(400);
   await shot('24-light-listen');
-  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.emulateMedia({ colorScheme: process.env.DARK ? 'dark' : 'dark' });
 
   // ---- persistence + offline ----
   await page.reload();

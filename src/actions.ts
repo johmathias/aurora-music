@@ -69,13 +69,14 @@ export function openTrackMenu(track: Track, ctx: { playlistId?: string; position
     items.push({ label: 'Remove from Playlist', icon: 'minus-circle', destructive: true, onSelect: () => removeFromPlaylist(playlistId, position) });
   }
   items.push({ label: 'Remove from Library', icon: 'trash', destructive: true, onSelect: () => void removeFromLibrary([track.id]) });
-  openMenu({ title: track.title, subtitle: track.artist, items });
+  openMenu({ title: track.title, subtitle: track.artist, art: { artId: track.artId, seed: track.album + track.artist }, items });
 }
 
 export function openAlbumMenu(album: Album): void {
   openMenu({
     title: album.title,
     subtitle: album.artist,
+    art: { artId: album.artId, seed: album.title + album.artist },
     items: [
       { label: 'Play Next', icon: 'play-next', onSelect: () => playNext(album.trackIds) },
       { label: 'Play Last', icon: 'add-queue', onSelect: () => addToQueue(album.trackIds) },
