@@ -61,6 +61,7 @@ export function openTrackMenu(track: Track, ctx: { playlistId?: string; position
     },
     { label: 'Go to Album', icon: 'album', onSelect: () => goTo({ kind: 'album', key: trackAlbumKey(track) }) },
     { label: 'Go to Artist', icon: 'person', onSelect: () => goTo({ kind: 'artist', key: artistKey(track.artist) }) },
+    { label: 'Edit Info & Artwork…', icon: 'edit', onSelect: () => sheets.open({ type: 'editTrack', trackId: track.id }) },
     { label: 'Song Info', icon: 'info', onSelect: () => sheets.open({ type: 'trackInfo', trackId: track.id }) },
   ];
   if (ctx.playlistId !== undefined && ctx.position !== undefined) {
@@ -79,6 +80,7 @@ export function openAlbumMenu(album: Album): void {
       { label: 'Play Next', icon: 'play-next', onSelect: () => playNext(album.trackIds) },
       { label: 'Add to Queue', icon: 'add-queue', onSelect: () => addToQueue(album.trackIds) },
       { label: 'Add to Playlist…', icon: 'add-playlist', onSelect: () => sheets.open({ type: 'addToPlaylist', trackIds: album.trackIds }) },
+      { label: 'Change Artwork…', icon: 'photo', onSelect: () => sheets.open({ type: 'editTrack', trackId: album.trackIds[0] }) },
       { label: 'Go to Artist', icon: 'person', onSelect: () => goTo({ kind: 'artist', key: artistKey(album.artist) }) },
       { label: 'Remove Album from Library', icon: 'trash', destructive: true, onSelect: () => void removeFromLibrary(album.trackIds) },
     ],

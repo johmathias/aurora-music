@@ -7,6 +7,9 @@ import { Field } from '../components/Controls';
 import { Icon } from '../components/Icon';
 import { PlaylistArt } from '../components/Cards';
 import { removeFromLibrary } from '../actions';
+import { forgetArtwork, processArtwork } from '../lib/artwork';
+import { store } from '../lib/db';
+import { trackAlbumKey } from '../lib/indexing';
 import { formatBytes, formatTime, plural, relativeDay } from '../lib/format';
 import { looksSynced, parseLyrics } from '../lib/lyrics';
 import { addToPlaylist, deleteLyrics, getLyrics, playlistTrackIds, saveLyrics, trackById, updateTrack, useLibrary } from '../store/library';
@@ -85,9 +88,25 @@ function EditTrackForm({ trackId }: { trackId: string }) {
   const [trackNo, setTrackNo] = useState(track?.trackNo ? String(track.trackNo) : '');
   const [year, setYear] = useState(track?.year ? String(track.year) : '');
   const titleError = title.trim() ? null : 'A song needs a title.';
+  const [artId, setArtId] = useState<string | undefined>(track?.artId);
+    const [wholeAlbum, setWholeAlbum] = useState(true);
+  const picker = useRef<HTMLInputElement>(null);
+  const albumIds = useLibrary((s) => (track ? s.albums.get(trackAlbumKey(track))?.trackIds ?? [trackId] : [trackId]));
 
-  const save = () => {
+  const pickArt = async (file: File | undefined) => {
+    if (!file) return;
+    const rec = await processArtwork(file, file.type || 'image/jpeg');
+    if (!rec) return showToast('That picture could not be read. Try a JPG or PNG.', 'error');
+    await store.put('artwork', rec);
+    forgetArtwork(rec.id);
+    setArtId(rec.id);
+  };
+
+  const save = async () => {
     if (titleError) return;
+    if (artId !== track?.artId) {
+      for (const id of wholeAlbum ? albumIds : [trackId]) updateTrack(id, { artId });
+    }
     updateTrack(trackId, {
       title: title.trim(),
       artist: artist.trim() || 'Unknown Artist',
@@ -105,9 +124,28 @@ function EditTrackForm({ trackId }: { trackId: string }) {
       className="form"
       onSubmit={(e) => {
         e.preventDefault();
-        save();
+        void save();
       }}
     >
+      <div className="art-edit">
+        <div className="art-edit-img"><Artwork artId={artId} seed={(album || 'Unknown Album') + (artist || 'Unknown Artist')} kind="full" /></div>
+        <div className="art-edit-btns">
+          <button type="button" className="btn-pill" onClick={() => picker.current?.click()}>
+            <Icon name="photo" size={19} />
+            {artId ? 'Change Artwork' : 'Choose Artwork'}
+          </button>
+          {artId ? (
+            <button type="button" className="btn-pill danger" onClick={() => { setArtId(undefined); }}>Remove Artwork</button>
+          ) : null}
+          {albumIds.length > 1 ? (
+            <label className="art-edit-all">
+              <input type="checkbox" checked={wholeAlbum} onChange={(e) => setWholeAlbum(e.target.checked)} />
+              Use for all {albumIds.length} songs on this album
+            </label>
+          ) : null}
+        </div>
+        <input ref={picker} type="file" accept="image/*" hidden onChange={(e) => void pickArt(e.target.files?.[0]).then(() => (e.target.value = ''))} />
+      </div>
       <Field label="Title" error={titleError}>
         <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} autoComplete="off" />
       </Field>

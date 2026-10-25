@@ -1,6 +1,8 @@
 // Search your own library: songs, artists, albums, playlists and genres.
 
 import { useDeferredValue, useMemo, useState } from 'react';
+import { useStore } from '../store/createStore';
+import { searchText } from '../store/search';
 import { Artwork } from '../components/Artwork';
 import { GenreTile, PlaylistArt } from '../components/Cards';
 import { Icon } from '../components/Icon';
@@ -16,7 +18,7 @@ import { nav, type Route } from '../store/ui';
 export function Search() {
   const lib = useLibrary((s) => s);
   const recent = usePrefs((s) => s.recentSearches);
-  const [query, setQuery] = useState('');
+  const query = useStore(searchText, (s) => s.q);
   const [allSongs, setAllSongs] = useState(false);
   const deferred = useDeferredValue(query);
   const results = useMemo(() => searchLibrary(lib, deferred), [lib, deferred]);
@@ -38,30 +40,6 @@ export function Search() {
 
   return (
     <Screen title="Search" root actions={<SettingsButton />}>
-      <div className="search-bar">
-        <Icon name="search" size={18} className="search-ico" />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setAllSongs(false);
-          }}
-          onKeyDown={(e) => e.key === 'Enter' && (rememberSearch(query), (e.target as HTMLInputElement).blur())}
-          placeholder="Songs, artists, albums, playlists"
-          aria-label="Search your library"
-          enterKeyHint="search"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-        />
-        {query ? (
-          <button className="search-clear" aria-label="Clear search" onClick={() => setQuery('')}>
-            <Icon name="close" size={14} />
-          </button>
-        ) : null}
-      </div>
-
       {!searching ? (
         <>
           {recent.length ? (
@@ -72,7 +50,7 @@ export function Search() {
               </div>
               {recent.map((r) => (
                 <div className="recent-row" key={r}>
-                  <button className="recent-main" onClick={() => setQuery(r)}>
+                  <button className="recent-main" onClick={() => searchText.set({ q: r })}>
                     <Icon name="clock" size={18} />
                     <span>{r}</span>
                   </button>
@@ -89,7 +67,7 @@ export function Search() {
               <div className="section-head"><h2>Suggestions</h2></div>
               <div className="chips pad">
                 {suggestions.map((s) => (
-                  <button key={s} className="chip" onClick={() => setQuery(s)}>{s}</button>
+                  <button key={s} className="chip" onClick={() => searchText.set({ q: s })}>{s}</button>
                 ))}
               </div>
             </div>

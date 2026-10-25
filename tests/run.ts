@@ -50,20 +50,24 @@ try {
   const errors: string[] = [];
   page.on('pageerror', (e: Error) => errors.push(e.message));
   page.on('console', (m: { type(): string; text(): string }) => m.type() === 'error' && errors.push(m.text()));
+  const tabTo = async (name: string) => {
+    if (await page.locator('.dock.searching').count()) await page.getByRole('button', { name: 'Home', exact: true }).click();
+    if (name !== 'Home' || !(await page.locator('.dock.searching').count())) await page.getByRole('button', { name, exact: true }).first().click();
+  };
   const shot = (name: string) => page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
 
   await page.goto(URL);
-  await page.waitForSelector('.tabbar');
+  await page.waitForSelector('.dock');
   ok(await page.locator('.onboard').count(), 'empty library shows onboarding');
   await shot('01-listen-empty');
-  for (const [i, t] of ['Browse', 'Radio', 'Library', 'Search'].entries()) {
+  for (const [i, t] of ['Radio', 'Library', 'Search'].entries()) {
     await page.getByRole('button', { name: t, exact: true }).first().click();
     await wait(200);
     await shot(`02-${i}-${t.toLowerCase()}-empty`);
   }
 
   // ---- import ----
-  await page.getByRole('button', { name: 'Library', exact: true }).first().click();
+  await tabTo('Library');
   await page.locator('.nav-btn[aria-label="Import music"]').click();
   await page.waitForSelector('.sheet');
   await wait(500);
@@ -80,22 +84,35 @@ try {
   await wait(500);
 
   // ---- browse the library ----
-  await page.getByRole('button', { name: 'Listen Now', exact: true }).first().click();
+  await tabTo('Home');
   await wait(300);
   await shot('05-listen');
+  await tabTo('Home');
   await page.getByRole('button', { name: 'Browse', exact: true }).first().click();
   await wait(300);
   await shot('06-browse');
-  await page.getByRole('button', { name: 'Radio', exact: true }).first().click();
+  await tabTo('Radio');
   await wait(300);
   await shot('07-radio');
-  await page.getByRole('button', { name: 'Library', exact: true }).first().click();
+  await tabTo('Library');
   await wait(300);
   await shot('08-library');
   await page.locator('.lib-row:has(.lib-label:text-is("Songs"))').click();
   await wait(500);
   await shot('09-songs');
   ok((await page.locator('.tab-host.active .screen:not([inert]) .row[role=button]').count()) >= 3, 'songs list shows the imported songs');
+
+  // ---- upload artwork ----
+  await page.locator('.tab-host.active .screen:not([inert]) .row-more').first().click();
+  await page.getByRole('menuitem', { name: /Edit Info/ }).click();
+  await page.waitForSelector('.art-edit');
+  await page.locator('.art-edit input[type=file]').setInputFiles(process.env.COVER || '');
+  await wait(800);
+  await shot('09b-edit-artwork');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await wait(800);
+  const hasImg = await page.locator('.tab-host.active .screen:not([inert]) .row-art img.loaded').count();
+  ok(hasImg >= 1, 'uploaded artwork shows on the song row');
 
   // ---- play ----
   await page.locator('.tab-host.active .screen:not([inert]) .row[role=button]', { hasText: 'Blue Hour' }).first().click();
@@ -138,7 +155,7 @@ try {
   ok((await page.locator('.np-title').innerText()) === 'Night Signal', 'next song moves to the second song');
 
   // queue
-  await page.getByRole('button', { name: 'Queue' }).click();
+  await page.getByRole('button', { name: 'Queue', exact: true }).click();
   await wait(600);
   await shot('15-queue');
   await page.getByRole('button', { name: 'Done' }).click();
@@ -193,7 +210,7 @@ try {
 
   // search
   await page.getByRole('button', { name: 'Search', exact: true }).first().click();
-  await page.locator('.search-bar input').fill('echo');
+  await page.locator('.dock-search input').fill('echo');
   await wait(600);
   await shot('22-search');
   ok((await page.locator('.tab-host.active .screen:not([inert]) .results .row').count()) > 0, 'search finds Echo Field');
@@ -208,16 +225,16 @@ try {
   // ---- light theme ----
   await page.emulateMedia({ colorScheme: 'light' });
   await wait(300);
-  await page.getByRole('button', { name: 'Listen Now', exact: true }).first().click();
+  await tabTo('Home');
   await wait(400);
   await shot('24-light-listen');
   await page.emulateMedia({ colorScheme: 'dark' });
 
   // ---- persistence + offline ----
   await page.reload();
-  await page.waitForSelector('.tabbar');
+  await page.waitForSelector('.dock');
   await wait(1200);
-  await page.getByRole('button', { name: 'Library', exact: true }).first().click();
+  await tabTo('Library');
   const count = await page.locator('.lib-row:has(.lib-label:text-is("Songs"))').locator('.lib-count').innerText();
   ok(count === '3', `library survives a reload (songs: ${count})`);
 
@@ -225,9 +242,9 @@ try {
   await wait(1500);
   await context.setOffline(true);
   await page.reload();
-  await page.waitForSelector('.tabbar', { timeout: 10000 });
+  await page.waitForSelector('.dock', { timeout: 10000 });
   ok(true, 'app opens while offline');
-  await page.getByRole('button', { name: 'Library', exact: true }).first().click();
+  await tabTo('Library');
   await page.locator('.lib-row:has(.lib-label:text-is("Songs"))').click();
   await wait(500);
   await page.locator('.tab-host.active .screen:not([inert]) .row[role=button]', { hasText: 'Blue Hour' }).first().click();

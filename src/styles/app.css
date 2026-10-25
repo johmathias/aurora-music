@@ -450,10 +450,10 @@ button.line:active { background: var(--fill-2); }
 /* wider screens (iPad / desktop): keep the phone layout readable */
 @media (min-width: 700px) {
   .app { max-width: 520px; margin: 0 auto; box-shadow: 0 0 0 1px var(--separator); }
-  .tabbar, .mini, .np, .sheet-layer, .menu-layer, .select-bar { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
+  .dock, .mini, .np, .sheet-layer, .menu-layer, .select-bar { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
   .np { transform: translate(-50%, 100%); }
   .np.shown { transform: translateX(-50%); }
-  .mini { width: 504px; }
+  .mini { width: 496px; }
   .alert-layer, .toast { max-width: 520px; }
 }
 
@@ -464,9 +464,72 @@ button.line:active { background: var(--fill-2); }
 /* import sheet polish */
 .facts { list-style: none; padding: 4px 28px; }
 .facts li { display: flex; gap: 10px; align-items: flex-start; line-height: 1.35; }
-/* fill the whole iPhone screen, including under the home bar */
-html, body { position: fixed; inset: 0; width: 100%; height: 100%; }
-.app { top: 0; left: 0; right: 0; bottom: 0; height: auto; min-height: 0; }
-.tabbar { bottom: 0; }
 .facts li svg { color: var(--success); margin-top: 1px; }
 .import-progress-text { display: flex; justify-content: space-between; gap: 8px; }
+
+/* ===== Apple Music style bottom bar (floating glass) ===== */
+:root { --dock-h: 62px; --dock-bottom: max(calc(var(--safe-bottom) - 8px), 12px); --kb: 0px; }
+html, body { position: fixed; inset: 0; width: 100%; height: 100%; }
+.dock {
+  position: fixed; left: 0; right: 0; z-index: 60; display: flex; gap: 10px; padding: 0 12px; height: var(--dock-h);
+  bottom: calc(var(--dock-bottom) + var(--kb)); transition: bottom 0.2s var(--ease);
+}
+.dock-tabs { flex: 1; display: flex; padding: 5px; border-radius: 31px; box-shadow: var(--shadow-float), inset 0 0.5px 0 var(--glass-hi); }
+.dock .tab { flex: 1; border-radius: 26px; gap: 2px; font-size: 11px; font-weight: 600; color: var(--label); transition: background 0.2s; }
+.dock .tab svg { color: var(--label); }
+.dock .tab.active { background: var(--fill); color: var(--accent); }
+.dock .tab.active svg { color: var(--accent); }
+.dock-circle { width: var(--dock-h); height: var(--dock-h); flex: none; border-radius: 50%; display: grid; place-items: center; box-shadow: var(--shadow-float), inset 0 0.5px 0 var(--glass-hi); }
+.dock-circle:active, .dock .tab:active { opacity: 0.6; }
+.dock-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 18px; border-radius: 31px; box-shadow: var(--shadow-float), inset 0 0.5px 0 var(--glass-hi); color: var(--label-2); }
+.dock-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; font-size: 17px; color: var(--label); }
+.dock-search input::-webkit-search-cancel-button { display: none; }
+.dock-clear { width: 26px; height: 26px; border-radius: 13px; background: var(--fill); display: grid; place-items: center; flex: none; }
+
+.mini { left: 12px; right: 12px; height: 62px; border-radius: 31px; padding: 0 8px 0 10px; bottom: calc(var(--dock-bottom) + var(--dock-h) + 10px + var(--kb)); }
+.mini-art { width: 44px; }
+.mini-art .art { border-radius: 8px; }
+.mini-title { font-weight: 600; font-size: 16px; }
+.mini-sub { font-size: 14px; }
+.mini-progress { display: none; }
+.app.kb-open .mini { transform: translateY(160%); }
+
+.scroll { padding-bottom: calc(var(--dock-bottom) + var(--dock-h) + var(--mini-h) + 44px); }
+.app:not(.has-mini) .scroll { padding-bottom: calc(var(--dock-bottom) + var(--dock-h) + 32px); }
+.select-bar { bottom: calc(var(--dock-bottom) + var(--dock-h) + 10px); }
+
+/* ===== Now Playing, laid out like Apple Music ===== */
+.np-head { height: 44px; }
+.np-grabber { position: absolute; top: 0; left: 50%; width: 140px; height: 44px; margin-left: -70px; border-radius: 0; background: none; }
+.np-grabber::after { content: ''; position: absolute; top: 10px; left: 50%; width: 38px; height: 5px; margin-left: -19px; border-radius: 3px; background: rgba(255, 255, 255, 0.42); }
+.np-inner { padding-inline: 32px; padding-bottom: calc(var(--safe-bottom) + 10px); }
+.lyrics-panel { margin-inline: -32px; }
+.lyrics-scroll { padding-inline: 32px; }
+.np-stage { padding: 0; }
+.np-art { width: 100%; max-width: 54dvh; }
+.np-art .art { border-radius: 10px; }
+.np-meta { margin-bottom: 18px; gap: 10px; }
+.np-title { font-size: 22px; font-weight: 700; }
+.np-artist { font-size: 22px; font-weight: 400; color: rgba(255, 255, 255, 0.62); }
+.np-meta.compact .np-title, .np-meta.compact .np-artist { font-size: 18px; }
+.np-circle { width: 34px; height: 34px; background: rgba(255, 255, 255, 0.2); }
+.np-circle.on { background: rgba(255, 255, 255, 0.92); color: #000; }
+.np-progress { margin-bottom: 4px; }
+.np-times { font-size: 13px; font-weight: 500; color: rgba(255, 255, 255, 0.55); margin-top: 0; }
+.np-controls { justify-content: space-between; padding: 14px 22px 18px; }
+.np-skip { width: 72px; height: 72px; }
+.np-play { width: 84px; height: 84px; }
+.np-volume { flex: none; margin: 4px 0 14px; }
+.np-footer { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; justify-items: center; height: 56px; margin-top: auto; }
+.np-footer > :first-child { justify-self: start; }
+.np-footer > :last-child { justify-self: end; }
+.np-foot-btn { position: relative; width: 48px; height: 48px; border-radius: 14px; color: rgba(255, 255, 255, 0.62); }
+.np-badge { position: absolute; right: 0; top: -6px; width: 24px; height: 24px; border-radius: 12px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.28); color: #fff; }
+
+/* artwork picker in Edit Song Info */
+.art-edit { display: flex; gap: 14px; align-items: center; }
+.art-edit-img { width: 104px; flex: none; }
+.art-edit-btns { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.art-edit-btns .btn-pill { height: 40px; font-size: 15px; padding: 0 12px; }
+.art-edit-all { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--label-2); line-height: 1.25; }
+.art-edit-all input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }

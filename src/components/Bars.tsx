@@ -1,29 +1,109 @@
 // The bottom of the app: the floating mini player and the glass tab bar.
 
+import { useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { Artwork } from './Artwork';
 import { Icon } from './Icon';
 import { next, toggle, useCurrentTrack, usePlaybackDuration, usePlaybackSecond, usePlayer } from '../store/player';
+import { rememberSearch } from '../store/prefs';
+import { useStore } from '../store/createStore';
+import { searchText } from '../store/search';
 import { nav, nowPlaying, useUi, type Tab } from '../store/ui';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'listen', label: 'Listen Now', icon: 'listen' },
-  { id: 'browse', label: 'Browse', icon: 'browse' },
+  { id: 'listen', label: 'Home', icon: 'home' },
   { id: 'radio', label: 'Radio', icon: 'radio' },
   { id: 'library', label: 'Library', icon: 'library' },
-  { id: 'search', label: 'Search', icon: 'search' },
 ];
 
+/** Keeps the bar above the on-screen keyboard while you type a search. */
+function useKeyboardLift() {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const typing = document.activeElement instanceof HTMLElement && document.activeElement.dataset.barInput === 'true';
+      const lift = typing ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
+      document.documentElement.style.setProperty('--kb', `${lift}px`);
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    window.addEventListener('focusout', () => setTimeout(update, 50));
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+}
+
+/**
+ * The bottom bar, like Apple Music: three tabs in one glass pill plus a round search button.
+ * Tapping search turns the bar into a search field next to a round Home button.
+ */
 export function TabBar() {
   const tab = useUi((s) => s.tab);
-  return (
-    <nav className="tabbar glass" aria-label="Main">
-      {TABS.map((t) => (
-        <button key={t.id} className={`tab${tab === t.id ? ' active' : ''}`} aria-current={tab === t.id ? 'page' : undefined} onClick={() => nav.openTab(t.id)}>
-          <Icon name={t.icon} size={26} />
-          <span>{t.label}</span>
+  const q = useStore(searchText, (s) => s.q);
+  const input = useRef<HTMLInputElement>(null);
+  const searching = tab === 'search';
+  useKeyboardLift();
+
+  const openSearch = () => {
+    // flushSync so the field exists before we focus it (iPhone only opens the keyboard inside the tap)
+    flushSync(() => nav.openTab('search'));
+    input.current?.focus();
+  };
+
+  if (searching) {
+    return (
+      <div className="dock searching">
+        <button className="dock-circle glass" aria-label="Home" onClick={() => nav.openTab('listen')}>
+          <Icon name="home" size={27} />
         </button>
-      ))}
-    </nav>
+        <div className="dock-search glass">
+          <Icon name="search" size={20} />
+          <input
+            ref={input}
+            data-bar-input="true"
+            type="search"
+            value={q}
+            onChange={(e) => searchText.set({ q: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                rememberSearch(q);
+                e.currentTarget.blur();
+              }
+            }}
+            placeholder="Search your library"
+            aria-label="Search your library"
+            enterKeyHint="search"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          {q ? (
+            <button aria-label="Clear search" className="dock-clear" onClick={() => { searchText.set({ q: '' }); input.current?.focus(); }}>
+              <Icon name="close" size={14} />
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dock">
+      <nav className="dock-tabs glass" aria-label="Main">
+        {TABS.map((t) => (
+          <button key={t.id} className={`tab${tab === t.id ? ' active' : ''}`} aria-current={tab === t.id ? 'page' : undefined} onClick={() => nav.openTab(t.id)}>
+            <Icon name={t.icon} size={26} />
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </nav>
+      <button className="dock-circle glass" aria-label="Search" onClick={openSearch}>
+        <Icon name="search" size={27} />
+      </button>
+    </div>
   );
 }
 

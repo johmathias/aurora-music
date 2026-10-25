@@ -81,7 +81,7 @@ export function ListenNow() {
   const when = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <Screen title={greeting()} eyebrow={when} root actions={<SettingsButton />}>
+    <Screen title={greeting()} eyebrow={when} root actions={<><button className="nav-btn" aria-label="Browse" onClick={() => nav.openTab('browse')}><Icon name="browse" size={23} /></button><SettingsButton /></>}>
       {!hasTracks ? (
         <EmptyLibrary />
       ) : (

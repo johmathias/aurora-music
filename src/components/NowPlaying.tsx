@@ -13,7 +13,7 @@ import { formatTime } from '../lib/format';
 import { artistKey, trackAlbumKey } from '../lib/indexing';
 import { toggleFavorite } from '../store/library';
 import {
-  cycleRepeat, getPosition, next, previous, seekTo, setShuffle, setVolume, showAirPlayPicker, toggle,
+  getPosition, next, previous, seekTo, setVolume, showAirPlayPicker, toggle,
   useCurrentTrack, usePlaybackDuration, usePlaybackSecond, usePlayer,
 } from '../store/player';
 import { usePrefs } from '../store/prefs';
@@ -78,26 +78,30 @@ function ProgressBlock() {
 function Controls() {
   const playing = usePlayer((s) => s.playing);
   const loading = usePlayer((s) => s.loading);
-  const shuffle = usePlayer((s) => s.shuffle);
-  const repeat = usePlayer((s) => s.repeat);
-  const repeatLabel = repeat === 'off' ? 'Repeat off' : repeat === 'all' ? 'Repeat all' : 'Repeat one song';
   return (
     <div className="np-controls">
-      <button className={`np-toggle${shuffle ? ' on' : ''}`} aria-pressed={shuffle} aria-label={shuffle ? 'Shuffle on' : 'Shuffle off'} onClick={() => setShuffle(!shuffle)}>
-        <Icon name="shuffle" size={22} />
-      </button>
       <button className="np-skip" aria-label="Previous song, or restart" onClick={previous}>
-        <Icon name="prev" size={38} />
+        <Icon name="prev" size={44} />
       </button>
       <button className={`np-play${loading ? ' loading' : ''}`} aria-label={playing ? 'Pause' : 'Play'} onClick={toggle}>
-        <Icon name={playing ? 'pause' : 'play'} size={52} />
+        <Icon name={playing ? 'pause' : 'play'} size={60} />
       </button>
       <button className="np-skip" aria-label="Next song" onClick={next}>
-        <Icon name="next" size={38} />
+        <Icon name="next" size={44} />
       </button>
-      <button className={`np-toggle${repeat !== 'off' ? ' on' : ''}`} aria-pressed={repeat !== 'off'} aria-label={repeatLabel} onClick={cycleRepeat}>
-        <Icon name={repeat === 'one' ? 'repeat1' : 'repeat'} size={22} />
-      </button>
+    </div>
+  );
+}
+
+function Volume() {
+  const canVolume = usePlayer((s) => s.canSetVolume);
+  const volume = usePlayer((s) => s.volume);
+  if (!canVolume) return null;
+  return (
+    <div className="np-volume">
+      <Icon name="volume-low" size={16} />
+      <Slider value={volume} onCommit={setVolume} onScrub={(v) => v !== null && setVolume(v)} label="Volume" />
+      <Icon name="volume" size={18} />
     </div>
   );
 }
@@ -105,29 +109,28 @@ function Controls() {
 function Footer() {
   const mode = useUi((s) => s.nowPlayingMode);
   const airplay = usePlayer((s) => s.airplay);
-  const canVolume = usePlayer((s) => s.canSetVolume);
-  const volume = usePlayer((s) => s.volume);
+  const shuffle = usePlayer((s) => s.shuffle);
+  const repeat = usePlayer((s) => s.repeat);
+  const badge = shuffle ? 'shuffle' : repeat === 'one' ? 'repeat1' : repeat === 'all' ? 'repeat' : null;
   return (
     <div className="np-footer">
       <button className={`np-foot-btn${mode === 'lyrics' ? ' on' : ''}`} aria-pressed={mode === 'lyrics'} aria-label="Lyrics" onClick={() => nowPlaying.setMode(mode === 'lyrics' ? 'art' : 'lyrics')}>
-        <Icon name={mode === 'lyrics' ? 'lyrics-fill' : 'lyrics'} size={24} />
+        <Icon name={mode === 'lyrics' ? 'lyrics-fill' : 'lyrics'} size={26} />
       </button>
-      {canVolume ? (
-        <div className="np-volume">
-          <Icon name="volume-low" size={16} />
-          <Slider value={volume} onCommit={setVolume} onScrub={(v) => v !== null && setVolume(v)} label="Volume" />
-          <Icon name="volume" size={18} />
-        </div>
-      ) : (
-        <div className="np-foot-spacer" />
-      )}
       {airplay === 'available' ? (
         <button className="np-foot-btn" aria-label="Choose where to play (AirPlay)" onClick={showAirPlayPicker}>
-          <Icon name="airplay" size={24} />
+          <Icon name="airplay" size={28} />
         </button>
-      ) : null}
-      <button className="np-foot-btn" aria-label="Queue" onClick={() => sheets.open({ type: 'queue' })}>
-        <Icon name="queue" size={24} />
+      ) : (
+        <span />
+      )}
+      <button className="np-foot-btn queue" aria-label="Queue" onClick={() => sheets.open({ type: 'queue' })}>
+        <Icon name="queue" size={26} />
+        {badge ? (
+          <span className="np-badge" aria-hidden="true">
+            <Icon name={badge} size={12} />
+          </span>
+        ) : null}
       </button>
     </div>
   );
@@ -165,10 +168,10 @@ function Meta({ track, compact }: { track: Track; compact?: boolean }) {
         <Marquee text={track.artist} className="np-artist" />
       </div>
       <button className={`np-circle${track.favorite ? ' on' : ''}`} aria-pressed={track.favorite} aria-label={track.favorite ? 'Remove from Favorites' : 'Favorite'} onClick={() => toggleFavorite(track.id)}>
-        <Icon name={track.favorite ? 'heart-fill' : 'heart'} size={20} />
+        <Icon name={track.favorite ? 'star-fill' : 'star'} size={22} />
       </button>
-      <button className="np-circle" aria-label="Add to playlist" onClick={() => sheets.open({ type: 'addToPlaylist', trackIds: [track.id] })}>
-        <Icon name="add-playlist" size={20} />
+      <button className="np-circle" aria-label="More options" onClick={() => openNowPlayingMenu(track)}>
+        <Icon name="more" size={22} />
       </button>
     </div>
   );
@@ -236,17 +239,7 @@ function Body({ track, shown }: { track: Track; shown: boolean }) {
 
       <div className="np-inner">
         <div className="np-head" data-drag-handle>
-          <span className="np-grabber" aria-hidden="true" />
-          <button className="np-icon-btn" aria-label="Close Now Playing" onClick={nowPlaying.close}>
-            <Icon name="chevron-down" size={26} />
-          </button>
-          <div className="np-head-title">
-            <span className="eyebrow">Now Playing</span>
-            <span className="np-head-album">{track.album}</span>
-          </div>
-          <button className="np-icon-btn" aria-label="More options" onClick={() => openNowPlayingMenu(track)}>
-            <Icon name="more" size={24} />
-          </button>
+          <button className="np-grabber" aria-label="Close Now Playing" onClick={nowPlaying.close} />
         </div>
 
         {lyricsMode ? <Meta track={track} compact /> : null}
@@ -264,6 +257,7 @@ function Body({ track, shown }: { track: Track; shown: boolean }) {
         {!lyricsMode ? <Meta track={track} /> : null}
         <ProgressBlock />
         <Controls />
+        <Volume />
         <Footer />
       </div>
     </div>
