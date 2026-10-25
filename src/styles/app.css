@@ -464,5 +464,9 @@ button.line:active { background: var(--fill-2); }
 /* import sheet polish */
 .facts { list-style: none; padding: 4px 28px; }
 .facts li { display: flex; gap: 10px; align-items: flex-start; line-height: 1.35; }
+/* fill the whole iPhone screen, including under the home bar */
+html, body { position: fixed; inset: 0; width: 100%; height: 100%; }
+.app { top: 0; left: 0; right: 0; bottom: 0; height: auto; min-height: 0; }
+.tabbar { bottom: 0; }
 .facts li svg { color: var(--success); margin-top: 1px; }
 .import-progress-text { display: flex; justify-content: space-between; gap: 8px; }
