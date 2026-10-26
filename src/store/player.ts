@@ -56,6 +56,17 @@ const audio = new Audio();
 audio.preload = 'auto';
 audio.setAttribute('playsinline', '');
 audio.setAttribute('x-webkit-airplay', 'allow');
+audio.setAttribute('webkit-playsinline', '');
+audio.style.display = 'none';
+// Keeping the element in the page helps iPhone treat it as a real music player (lock screen, background).
+if (typeof document !== 'undefined') document.body ? document.body.appendChild(audio) : document.addEventListener('DOMContentLoaded', () => document.body.appendChild(audio));
+// Tell iOS this is music: it should keep playing with the screen locked and ignore the ringer switch.
+try {
+  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+  if (session) session.type = 'playback';
+} catch {
+  /* older iPhones do not have this */
+}
 
 const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=';
 const isSilent = () => audio.src.startsWith('data:audio/wav');
@@ -257,20 +268,8 @@ audio.addEventListener('pause', () => {
   syncMediaState();
   saveNow();
 });
-let kickPending = false;
 audio.addEventListener('playing', () => {
   if (isSilent()) return;
-  if (kickPending) {
-    // Some iPhones start the next song with the picture moving but no sound. A tiny pause/play wakes the output.
-    kickPending = false;
-    const uid = loadedUid;
-    window.setTimeout(() => {
-      if (uid === loadedUid && player.get().playing && !audio.paused) {
-        audio.pause();
-        void audio.play().catch(() => undefined);
-      }
-    }, 350);
-  }
   player.set({ playing: true, loading: false });
   const track = currentTrack();
   if (track && !startRecorded) {
@@ -313,7 +312,6 @@ audio.addEventListener('ended', () => {
     player.set({ sleepEnd: false, sleepAt: null, playing: false });
     return;
   }
-  kickPending = true;
   advance(true);
 });
 audio.addEventListener('error', () => {
@@ -325,7 +323,9 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveNow();
   else {
     // coming back to the app: make sure the buttons match reality
-    if (!isSilent() && currentItem()) player.set({ playing: !audio.paused });
+    // if the song ended while the phone was locked and the next one never started, start it now
+    if (!isSilent() && audio.ended && player.get().playing && !player.get().sleepEnd) advance(true);
+    else if (!isSilent() && currentItem()) player.set({ playing: !audio.paused });
     time.set({ second: Math.floor(audio.currentTime) });
   }
 });
@@ -620,8 +620,9 @@ function registerMediaHandlers() {
   set('previoustrack', () => previous());
   set('nexttrack', () => next());
   set('seekto', (d) => d.seekTime !== undefined && seekTo(d.seekTime));
-  set('seekbackward', (d) => seekTo(getPosition() - (d.seekOffset ?? 10)));
-  set('seekforward', (d) => seekTo(getPosition() + (d.seekOffset ?? 10)));
+  // seekbackward/seekforward are left out on purpose: when they exist, iPhone shows 10-second buttons instead of previous/next
+  set('seekbackward', null);
+  set('seekforward', null);
 }
 
 // Keep the lock screen position fresh, about once a second.

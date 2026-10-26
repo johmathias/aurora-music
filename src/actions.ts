@@ -5,14 +5,15 @@ import { addToQueue, playNext, playTracks } from './store/player';
 import {
   deletePlaylist, library, markPlaylistPlayed, playlistTrackIds, removeFromPlaylist, removeTracks, setFavorite, toggleFavorite, updatePlaylist,
 } from './store/library';
-import { confirmDialog, nav, openMenu, sheets, showToast, type MenuItem } from './store/ui';
+import { confirmDialog, nav, openMenu, playSource, sheets, showToast, type MenuItem } from './store/ui';
 import { artistKey, trackAlbumKey } from './lib/indexing';
 import { plural } from './lib/format';
 import type { Album, Playlist, Track } from './types';
 
 /** Play a list. `shuffle: true` also turns shuffle on, `false` plays in order. */
-export function playList(ids: string[], opts: { shuffle?: boolean; from?: number } = {}): void {
+export function playList(ids: string[], opts: { shuffle?: boolean; from?: number; playlistId?: string } = {}): void {
   if (!ids.length) return;
+  playSource.set({ playlistId: opts.playlistId ?? null });
   if (opts.shuffle) playTracks(ids, Math.floor(Math.random() * ids.length), { shuffle: true });
   else playTracks(ids, opts.from ?? 0, { shuffle: false });
 }
@@ -24,7 +25,7 @@ export function playPlaylist(p: Playlist, shuffle = false): void {
     return;
   }
   markPlaylistPlayed(p.id);
-  playList(ids, { shuffle });
+  playList(ids, { shuffle, playlistId: p.id });
 }
 
 /** Open a screen after closing anything floating above it. */
@@ -50,25 +51,31 @@ export async function removeFromLibrary(ids: string[]): Promise<boolean> {
 }
 
 export function openTrackMenu(track: Track, ctx: { playlistId?: string; position?: number } = {}): void {
+  const lib = library.get();
+  const pl = ctx.playlistId ? lib.playlistById.get(ctx.playlistId) : undefined;
   const items: MenuItem[] = [
     { label: 'Play Next', icon: 'play-next', onSelect: () => playNext([track.id]) },
     { label: 'Play Last', icon: 'add-queue', onSelect: () => addToQueue([track.id]) },
-    { label: 'Add to Playlist…', icon: 'add-playlist', onSelect: () => sheets.open({ type: 'addToPlaylist', trackIds: [track.id] }) },
     {
-      label: track.favorite ? 'Remove from Favorites' : 'Favorite',
-      icon: track.favorite ? 'heart-fill' : 'heart',
+      label: track.favorite ? 'Unfavourite' : 'Favourite',
+      icon: track.favorite ? 'star-fill' : 'star',
+      separatorBefore: true,
       onSelect: () => toggleFavorite(track.id),
     },
-    { label: 'Go to Album', icon: 'album', onSelect: () => goTo({ kind: 'album', key: trackAlbumKey(track) }) },
-    { label: 'Go to Artist', icon: 'person', onSelect: () => goTo({ kind: 'artist', key: artistKey(track.artist) }) },
-    { label: 'Edit Info & Artwork…', icon: 'edit', onSelect: () => sheets.open({ type: 'editTrack', trackId: track.id }) },
-    { label: 'Song Info', icon: 'info', onSelect: () => sheets.open({ type: 'trackInfo', trackId: track.id }) },
+    { label: 'Add to a Playlist…', icon: 'add-playlist', onSelect: () => sheets.open({ type: 'addToPlaylist', trackIds: [track.id] }) },
   ];
+  if (pl) items.push({ label: 'Go to Playlist', subtitle: pl.name, icon: 'playlist', onSelect: () => goTo({ kind: 'playlist', id: pl.id }) });
+  items.push(
+    { label: 'Go to Album', icon: 'album', separatorBefore: true, onSelect: () => goTo({ kind: 'album', key: trackAlbumKey(track) }) },
+    { label: 'Go to Artist', icon: 'person', onSelect: () => goTo({ kind: 'artist', key: artistKey(track.artist) }) },
+    { label: 'Edit Info & Artwork…', icon: 'edit', separatorBefore: true, onSelect: () => sheets.open({ type: 'editTrack', trackId: track.id }) },
+    { label: 'Song Info', icon: 'info', onSelect: () => sheets.open({ type: 'trackInfo', trackId: track.id }) },
+  );
   if (ctx.playlistId !== undefined && ctx.position !== undefined) {
     const { playlistId, position } = ctx;
-    items.push({ label: 'Remove from Playlist', icon: 'minus-circle', destructive: true, onSelect: () => removeFromPlaylist(playlistId, position) });
+    items.push({ label: 'Remove from Playlist', icon: 'minus-circle', separatorBefore: true, onSelect: () => removeFromPlaylist(playlistId, position) });
   }
-  items.push({ label: 'Remove from Library', icon: 'trash', destructive: true, onSelect: () => void removeFromLibrary([track.id]) });
+  items.push({ label: 'Delete from Library', icon: 'trash', destructive: true, separatorBefore: ctx.position === undefined, onSelect: () => void removeFromLibrary([track.id]) });
   openMenu({ title: track.title, subtitle: track.artist, art: { artId: track.artId, seed: track.album + track.artist }, items });
 }
 

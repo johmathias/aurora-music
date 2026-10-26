@@ -1,7 +1,8 @@
 // The music library: tracks, playlists, play history and lyrics.
 // Every change is saved to IndexedDB first-class, so nothing is lost on reload.
 
-import { store as db, getAudioBlob } from '../lib/db';
+import { store as db, getAudioBlob, kvGet, kvSet } from '../lib/db';
+
 import { buildIndex, artistKey, primaryArtist, type LibraryIndex } from '../lib/indexing';
 import { forgetArtwork } from '../lib/artwork';
 import { parseLyrics } from '../lib/lyrics';
@@ -39,13 +40,34 @@ export const useLibrary = <S,>(selector: (s: LibraryState) => S) => useStore(lib
 
 // ---------- helpers ----------
 
+// Pictures the user picked for artists (artist key -> artwork id).
+let artistPhotos: Record<string, string> = {};
+
 function applyTracks(tracks: Track[]) {
+  const index = buildIndex(tracks);
+  for (const a of index.artists.values()) {
+    a.ownArtId = artistPhotos[a.key];
+    if (a.ownArtId) a.artId = a.ownArtId;
+  }
   library.set({
     tracks,
     byId: new Map(tracks.map((t) => [t.id, t])),
     totalBytes: tracks.reduce((n, t) => n + t.size, 0),
-    ...buildIndex(tracks),
+    ...index,
   });
+}
+
+/** Give an artist their own picture (or pass null to go back to the album cover). */
+export function setArtistPhoto(key: string, artId: string | null): void {
+  const next = { ...artistPhotos };
+  const old = next[key];
+  if (artId) next[key] = artId;
+  else delete next[key];
+  artistPhotos = next;
+  void kvSet('artistPhotos', artistPhotos);
+  applyTracks(library.get().tracks);
+  if (old && old !== artId) void db.delete('artwork', old).catch(() => undefined);
+  if (old && old !== artId) forgetArtwork(old);
 }
 
 function applyPlaylists(playlists: Playlist[]) {
@@ -84,6 +106,7 @@ export async function initLibrary(): Promise<void> {
       const old = history.splice(3000);
       await db.batch(old.filter((h) => h.id !== undefined).map((h) => ({ store: 'history' as const, delete: h.id! })));
     }
+    artistPhotos = await kvGet<Record<string, string>>('artistPhotos', {});
     applyTracks(tracks);
     applyPlaylists(playlists);
     library.set({ history, ready: true, error: null });
@@ -183,6 +206,7 @@ export async function removeTracks(ids: string[]): Promise<void> {
   const remaining = tracks.filter((t) => !remove.has(t.id));
   const stillUsed = new Set(remaining.map((t) => t.artId).filter(Boolean) as string[]);
   playlists.forEach((p) => p.coverArtId && stillUsed.add(p.coverArtId));
+  Object.values(artistPhotos).forEach((a) => stillUsed.add(a));
   const orphanArt = new Set<string>();
   for (const id of ids) {
     const art = byId.get(id)?.artId;
@@ -214,6 +238,8 @@ export async function removeTracks(ids: string[]): Promise<void> {
 
 export async function resetEverything(): Promise<void> {
   for (const name of ['tracks', 'blobs', 'artwork', 'playlists', 'lyrics', 'history'] as const) await db.clear(name);
+  artistPhotos = {};
+  void kvSet('artistPhotos', {});
   applyTracks([]);
   applyPlaylists([]);
   library.set({ history: [] });

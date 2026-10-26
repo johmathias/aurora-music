@@ -12,7 +12,7 @@ import { store } from '../lib/db';
 import { trackAlbumKey } from '../lib/indexing';
 import { formatBytes, formatTime, plural, relativeDay } from '../lib/format';
 import { looksSynced, parseLyrics } from '../lib/lyrics';
-import { addToPlaylist, deleteLyrics, getLyrics, playlistTrackIds, saveLyrics, trackById, updateTrack, useLibrary } from '../store/library';
+import { addToPlaylist, setArtistPhoto, deleteLyrics, getLyrics, playlistTrackIds, saveLyrics, trackById, updateTrack, useLibrary } from '../store/library';
 import { confirmDialog, showToast, sheets } from '../store/ui';
 
 // ---------- Song Info ----------
@@ -345,3 +345,47 @@ export function AddToPlaylistSheet({ sid, trackIds }: { sid: number; trackIds: s
 }
 
 export { looksSynced };
+
+
+/** Pick (or remove) the picture shown for an artist. */
+export function ArtistPhotoSheet({ sid, artistKey }: { sid: number; artistKey: string }) {
+  const artist = useLibrary((s) => s.artists.get(artistKey));
+  const picker = useRef<HTMLInputElement>(null);
+  if (!artist) return null;
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    const rec = await processArtwork(file, file.type || 'image/jpeg');
+    if (!rec) return showToast('That picture could not be read. Try a JPG or PNG.', 'error');
+    try {
+      await store.put('artwork', rec);
+    } catch {
+      return showToast('Could not save that picture.', 'error');
+    }
+    forgetArtwork(rec.id);
+    setArtistPhoto(artistKey, rec.id);
+    showToast('Artist photo changed', 'success');
+  };
+  return (
+    <Sheet sid={sid} title={artist.name} right={{ label: 'Done' }}>
+      <div className="info-sheet">
+        <div className="info-art round">
+          <Artwork artId={artist.artId} seed={artist.name} kind="full" round initial={artist.name} />
+        </div>
+        <p className="info-artist">{plural(artist.albumKeys.length, 'album')} · {plural(artist.trackIds.length, 'song')}</p>
+        <div className="stack">
+          <button className="btn-pill block" onClick={() => picker.current?.click()}>
+            <Icon name="photo" size={19} />
+            {artist.ownArtId ? 'Change Photo' : 'Choose Photo'}
+          </button>
+          {artist.ownArtId ? (
+            <button className="btn-pill block danger" onClick={() => setArtistPhoto(artistKey, null)}>
+              Remove Photo
+            </button>
+          ) : null}
+        </div>
+        <p className="footnote">The photo stays on this device. Without one, the artist uses an album cover.</p>
+        <input ref={picker} type="file" accept="image/*" hidden onChange={(e) => void pick(e.target.files?.[0]).then(() => (e.target.value = ''))} />
+      </div>
+    </Sheet>
+  );
+}

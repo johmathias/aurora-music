@@ -28,6 +28,7 @@ export type SheetDef =
   | { type: 'queue' }
   | { type: 'settings' }
   | { type: 'trackInfo'; trackId: string }
+  | { type: 'artistPhoto'; key: string }
   | { type: 'addToPlaylist'; trackIds: string[] }
   | { type: 'playlistEditor'; id?: string; trackIds?: string[] }
   | { type: 'mixEditor'; id?: string }
@@ -40,13 +41,18 @@ export interface MenuItem {
   icon?: string;
   destructive?: boolean;
   disabled?: boolean;
+  subtitle?: string; // small grey line under the label, like "Go to Playlist / Gospel"
+  separatorBefore?: boolean; // starts a new group (thick line)
   onSelect: () => void;
 }
+
+export interface MenuAnchor { x: number; y: number; w: number; h: number }
 
 export interface MenuDef {
   title?: string;
   subtitle?: string;
   art?: { artId?: string; seed: string };
+  anchor?: MenuAnchor;
   items: MenuItem[];
 }
 
@@ -162,9 +168,26 @@ export const sheets = {
   },
 };
 
-export function openMenu(menu: MenuDef) {
-  ui.set({ menu });
+// Remember what the finger touched last, so a menu can pop up right next to it.
+let lastAnchor: MenuAnchor | null = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'pointerdown',
+    (e) => {
+      const btn = (e.target as HTMLElement | null)?.closest?.('button');
+      const r = btn?.getBoundingClientRect();
+      lastAnchor = r && r.width < 120 ? { x: r.left, y: r.top, w: r.width, h: r.height } : { x: e.clientX, y: e.clientY, w: 0, h: 0 };
+    },
+    true,
+  );
 }
+
+export function openMenu(menu: MenuDef) {
+  ui.set({ menu: { ...menu, anchor: menu.anchor ?? lastAnchor ?? undefined } });
+}
+
+/** Which playlist the current queue came from (for "Playing from" and "Go to Playlist"). */
+export const playSource = createStore<{ playlistId: string | null }>({ playlistId: null });
 export function closeMenu() {
   ui.set({ menu: null });
 }

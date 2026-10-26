@@ -123,7 +123,7 @@ try {
     await wait(300);
     ok(await page.getByRole('menuitem', { name: 'Play Next' }).count(), 'long-press opens the song menu');
     await shot('09c-long-press-menu');
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.keyboard.press('Escape');
     await wait(300);
     await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y, { steps: 4 }); await page.mouse.move(x + 150, y, { steps: 4 });
     await shot('09d-swipe');
@@ -198,6 +198,20 @@ try {
       await page.locator('.tab-host.active .screen:not([inert]) .row', { hasText: 'The Testers' }).first().click();
       await wait(500);
       await shot('17b-artist-detail');
+      await page.getByRole('button', { name: 'Artist info and photo' }).click();
+      await page.waitForSelector('.info-art.round');
+      await page.locator('.sheet input[type=file]').setInputFiles(process.env.COVER || '');
+      await wait(900);
+      await shot('17c-artist-photo-sheet');
+      await page.getByRole('button', { name: 'Done' }).click();
+      await wait(500);
+      await shot('17d-artist-with-photo');
+      ok((await page.locator('.artist-hero-img img.loaded').count()) >= 1, 'artist photo shows on the artist page');
+      await page.getByRole('button', { name: 'Artist options' }).click();
+      await wait(400);
+      await shot('17e-artist-menu');
+      await page.keyboard.press('Escape');
+      await wait(300);
       await page.getByRole('button', { name: /^Back to/ }).click();
       await wait(300);
     }
@@ -211,7 +225,9 @@ try {
   await page.locator('.tab-host.active .screen:not([inert]) .row', { hasText: 'New Playlist' }).click();
   await page.waitForSelector('.form');
   await page.locator('.form input').first().fill('Road Trip');
-  await wait(300);
+  await page.locator('.form input[type=file]').setInputFiles(process.env.COVER || '');
+  await wait(900);
+  ok((await page.locator('.form .art img.loaded, .form img').count()) >= 1, 'playlist photo preview shows right after choosing it');
   await shot('20-playlist-editor');
   await page.getByRole('button', { name: 'Create Playlist' }).click();
   await wait(800);
@@ -270,6 +286,25 @@ try {
   ok(t2 > 0, `offline playback works (progress ${t2}%)`);
   await shot('25-offline');
   await context.setOffline(false);
+
+  // ---- delete the playing song from Now Playing: the app must stay usable ----
+  if (!(await page.locator('.np.shown').count())) {
+    await page.locator('.mini').click();
+    await wait(800);
+  }
+  // delete songs from the player until none are left
+  for (let n = 0; n < 4 && (await page.locator('.np.shown').count()); n++) {
+    await page.locator('.np .np-circle[aria-label="More options"]').click();
+    await wait(400);
+    if (n === 0) await shot('26-np-menu');
+    await page.getByRole('menuitem', { name: 'Delete from Library' }).click();
+    await wait(300);
+    await page.getByRole('button', { name: 'Remove', exact: true }).click();
+    await wait(1200);
+  }
+  ok((await page.locator('.app-shell[inert]').count()) === 0, 'app still responds after deleting the playing songs');
+  await tabTo('Home');
+  await wait(300);
 
   const real = errors.filter((e) => !/favicon|ERR_INTERNET_DISCONNECTED|Failed to load resource/i.test(e));
   ok(real.length === 0, `no console errors${real.length ? ': ' + real.slice(0, 3).join(' | ') : ''}`);

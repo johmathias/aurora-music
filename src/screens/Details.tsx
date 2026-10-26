@@ -7,16 +7,17 @@ import { Icon } from '../components/Icon';
 import { EmptyState, Screen } from '../components/Screen';
 import { Section, Shelf } from '../components/Section';
 import { EditableTrackList, TrackList } from '../components/TrackList';
-import { openAlbumMenu, openPlaylistMenu, playList, playPlaylist } from '../actions';
+import { favoriteMany, openAlbumMenu, openPlaylistMenu, playList, playPlaylist } from '../actions';
+import { addToQueue, playNext } from '../store/player';
 import { formatDurationLong, plural } from '../lib/format';
 import { artistKey } from '../lib/indexing';
 import { smartById } from '../lib/smart';
 import { createPlaylist, markPlaylistPlayed, moveInPlaylist, playlistTrackIds, removeFromPlaylist, updatePlaylist, useLibrary } from '../store/library';
-import { nav, sheets, showToast } from '../store/ui';
+import { nav, openMenu, sheets, showToast } from '../store/ui';
 import { PlayShuffle, tracksFrom } from './common';
 
-const MoreButton = ({ onClick, label }: { onClick: () => void; label: string }) => (
-  <button className="nav-btn" aria-label={label} onClick={onClick}>
+const MoreButton = ({ onClick, label, onPress }: { onClick: () => void; label: string; onPress?: (e: { currentTarget: HTMLElement }) => void }) => (
+  <button className="nav-btn" aria-label={label} onClick={(e) => (onPress ? onPress(e) : onClick())}>
     <Icon name="more" size={24} />
   </button>
 );
@@ -56,28 +57,65 @@ export function AlbumScreen({ albumKey }: { albumKey: string }) {
 
 export function ArtistScreen({ artistKeyValue }: { artistKeyValue: string }) {
   const lib = useLibrary((s) => s);
+  const [allSongs, setAllSongs] = useState(false);
   const artist = lib.artists.get(artistKeyValue);
   if (!artist) return <NotFound what="Artist" />;
   const tracks = tracksFrom(artist.trackIds, lib).sort((a, b) => b.playCount - a.playCount || a.title.localeCompare(b.title));
   const albums = artist.albumKeys.map((k) => lib.albums.get(k)).filter((a) => !!a);
+  const latest = albums.slice().sort((a, b) => (b!.year || 0) - (a!.year || 0))[0];
   const ids = tracks.map((t) => t.id);
+  const allFav = tracks.length > 0 && tracks.every((t) => t.favorite);
+  const shown = allSongs ? tracks : tracks.slice(0, 5);
+  const openShare = (e: { currentTarget: HTMLElement }) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    openMenu({
+      anchor: { x: r.left, y: r.top, w: r.width, h: r.height },
+      items: [
+        { label: 'Play Next', icon: 'play-next', onSelect: () => playNext(ids) },
+        { label: 'Play Last', icon: 'add-queue', onSelect: () => addToQueue(ids) },
+        { label: 'Shuffle', icon: 'shuffle', separatorBefore: true, onSelect: () => playList(ids, { shuffle: true }) },
+        { label: 'Change Photo…', icon: 'photo', separatorBefore: true, onSelect: () => sheets.open({ type: 'artistPhoto', key: artist.key }) },
+      ],
+    });
+  };
   return (
-    <Screen title={artist.name} large={false}>
-      <div className="detail-head artist">
-        <div className="detail-bg" aria-hidden="true"><Artwork artId={artist.artId} seed={artist.name} /></div>
-        <div className="detail-art round"><Artwork artId={artist.artId} seed={artist.name} kind="full" round initial={artist.name} /></div>
-        <h1 className="detail-title">{artist.name}</h1>
-        <p className="detail-meta">{plural(albums.length, 'album')} · {plural(tracks.length, 'song')}</p>
+    <Screen title={artist.name} large={false} hero actions={<MoreButton label="Artist options" onClick={() => undefined} onPress={openShare} />}>
+      <div className="artist-hero">
+        <div className="artist-hero-img"><Artwork artId={artist.artId} seed={artist.name} kind="full" initial={artist.name} /></div>
+        <div className="artist-hero-fade" />
+        <h1 className="artist-hero-name">{artist.name}</h1>
       </div>
-      <PlayShuffle ids={ids} />
+      <div className="artist-actions">
+        <button className="circle-btn" aria-label="Artist info and photo" onClick={() => sheets.open({ type: 'artistPhoto', key: artist.key })}>
+          <Icon name="info" size={20} />
+        </button>
+        <button className="big-play" aria-label={`Play ${artist.name}`} disabled={!ids.length} onClick={() => playList(ids)}>
+          <Icon name="play" size={30} />
+        </button>
+        <button className={`circle-btn${allFav ? ' on' : ''}`} aria-label={allFav ? 'Remove all songs from Favorites' : 'Favorite all songs'} aria-pressed={allFav} onClick={() => favoriteMany(ids)}>
+          <Icon name={allFav ? 'star-fill' : 'star'} size={20} />
+        </button>
+      </div>
+      {latest ? (
+        <Section title="Latest Release">
+          <button className="release-card" onClick={() => nav.push({ kind: 'album', key: latest.key })}>
+            <div className="release-art"><Artwork artId={latest.artId} seed={latest.title + latest.artist} /></div>
+            <div className="release-text">
+              <small>{[latest.year || null, plural(latest.trackIds.length, 'song')].filter(Boolean).join(' · ')}</small>
+              <strong>{latest.title}</strong>
+            </div>
+            <Icon name="chevron-right" size={16} />
+          </button>
+        </Section>
+      ) : null}
+      <Section title="Top Songs" onSeeAll={tracks.length > 5 ? () => setAllSongs((v) => !v) : undefined}>
+        <TrackList tracks={shown} sub="album" onPlay={(i) => playList(ids, { from: i })} />
+      </Section>
       {albums.length ? (
         <Section title="Albums">
           <Shelf>{albums.map((a) => <AlbumCard key={a!.key} album={a!} />)}</Shelf>
         </Section>
       ) : null}
-      <Section title="Songs">
-        <TrackList tracks={tracks} sub="album" onPlay={(i) => playList(ids, { from: i })} />
-      </Section>
     </Screen>
   );
 }
@@ -144,7 +182,7 @@ export function PlaylistScreen({ id }: { id: string }) {
           playlistId={isMix ? undefined : playlist.id}
           onPlay={(i) => {
             markPlaylistPlayed(playlist.id);
-            playList(ids, { from: i });
+            playList(ids, { from: i, playlistId: playlist.id });
           }}
         />
       )}

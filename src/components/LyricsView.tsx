@@ -49,7 +49,9 @@ export function LyricsView({ track }: { track: Track }) {
     const el = lineRefs.current[i];
     const b = box.current;
     if (!el || !b) return;
-    b.scrollTo({ top: Math.max(0, el.offsetTop - b.clientHeight * 0.3), behavior: smooth ? 'smooth' : 'auto' });
+    // where the line sits inside the scrolling box (offsetTop can be measured from the wrong parent)
+    const top = el.getBoundingClientRect().top - b.getBoundingClientRect().top + b.scrollTop;
+    b.scrollTo({ top: Math.max(0, top - b.clientHeight * 0.3), behavior: smooth ? 'smooth' : 'auto' });
   };
 
   useEffect(() => {
@@ -78,7 +80,7 @@ export function LyricsView({ track }: { track: Track }) {
 
   return (
     <div className="lyrics-panel">
-      <div ref={box} className={`lyrics-scroll${synced ? ' synced' : ' plain'}`} onTouchStart={stopFollowing} onWheel={stopFollowing} onPointerDown={stopFollowing} tabIndex={0} aria-label="Lyrics">
+      <div ref={box} className={`lyrics-scroll${synced ? ' synced' : ' plain'}`} onTouchMove={stopFollowing} onWheel={stopFollowing} tabIndex={0} aria-label="Lyrics">
         {parsed.lines.map((line, i) =>
           synced ? (
             <button

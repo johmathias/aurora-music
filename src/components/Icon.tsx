@@ -6,6 +6,7 @@ const S = { stroke: 'currentColor', fill: 'none' } as const;
 
 const icons: Record<string, ReactNode> = {
   home: <path d="M12 3.1L2.9 10.7c-.6.5-.3 1.5.5 1.5H5v7.2c0 .9.7 1.6 1.6 1.6h3v-5.4h4.8v5.4h3c.9 0 1.6-.7 1.6-1.6v-7.2h1.6c.8 0 1.1-1 .5-1.5z" fill="currentColor" stroke="none" />,
+  playlist: <path d="M3 6.5h13M3 11.5h13M3 16.5h7M19 11v7.5a2.3 2.3 0 11-2-2.3V11z" {...S} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
   star: <path d="M12 3.2l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.2l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" {...S} strokeWidth="2" strokeLinejoin="round" />,
   'star-fill': <path d="M12 3.2l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.2l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />,
   play: <path d="M7 4.7v14.6c0 .8.9 1.3 1.6.9l12-7.3c.6-.4.6-1.3 0-1.7l-12-7.3C7.9 3.4 7 3.9 7 4.7z" fill="currentColor" stroke="none" />,

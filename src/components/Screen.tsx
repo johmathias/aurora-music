@@ -16,15 +16,16 @@ interface ScreenProps {
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  hero?: boolean; // photo goes under the top bar (artist page)
 }
 
-export function Screen({ title, eyebrow, root, large = true, actions, children, className = '' }: ScreenProps) {
-  const { scrolled, onScroll } = useScrolled(large ? 30 : 150);
+export function Screen({ title, eyebrow, root, large = true, actions, children, className = '', hero }: ScreenProps) {
+  const { scrolled, onScroll } = useScrolled(large ? 30 : hero ? 230 : 150);
   const backLabel = useContext(BackLabelContext);
   return (
     <>
       <div
-        className={`nav-bar${scrolled ? ' scrolled' : ''}`}
+        className={`nav-bar${scrolled ? ' scrolled' : ''}${hero ? ' over-photo' : ''}`}
         onClick={(e) => {
           // like tapping the top of an iPhone screen: jump back to the top
           if (!(e.target as HTMLElement).closest('button')) (e.currentTarget.nextElementSibling as HTMLElement | null)?.scrollTo({ top: 0, behavior: 'smooth' });

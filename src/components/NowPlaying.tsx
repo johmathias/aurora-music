@@ -6,18 +6,18 @@ import { Artwork } from './Artwork';
 import { Icon } from './Icon';
 import { Slider } from './Controls';
 import { LyricsView } from './LyricsView';
-import { goTo, openTrackMenu } from '../actions';
+import { goTo, removeFromLibrary } from '../actions';
 import { useFrames, useTransitionMount } from '../hooks';
 import { useArtworkColors } from '../lib/artwork';
 import { formatTime } from '../lib/format';
 import { artistKey, trackAlbumKey } from '../lib/indexing';
-import { toggleFavorite } from '../store/library';
+import { library, toggleFavorite } from '../store/library';
 import {
   getPosition, next, previous, seekTo, setSleepTimer, setVolume, showAirPlayPicker, toggle,
   player, useCurrentTrack, usePlaybackDuration, usePlaybackSecond, usePlayer,
 } from '../store/player';
 import { usePrefs } from '../store/prefs';
-import { nowPlaying, openMenu, sheets, useUi } from '../store/ui';
+import { nowPlaying, openMenu, playSource, sheets, useUi, type MenuItem } from '../store/ui';
 import type { Track } from '../types';
 
 /** Long titles slide sideways instead of being cut off. */
@@ -152,22 +152,25 @@ function openSleepMenu() {
 
 function openNowPlayingMenu(track: Track) {
   const canShare = typeof navigator.share === 'function';
-  openMenu({
-    title: track.title,
-    subtitle: track.artist,
-    items: [
-      { label: 'Add to Playlist…', icon: 'add-playlist', onSelect: () => sheets.open({ type: 'addToPlaylist', trackIds: [track.id] }) },
-      { label: 'Go to Album', icon: 'album', onSelect: () => goTo({ kind: 'album', key: trackAlbumKey(track) }) },
-      { label: 'Go to Artist', icon: 'person', onSelect: () => goTo({ kind: 'artist', key: artistKey(track.artist) }) },
-      { label: track.hasLyrics ? 'Edit Lyrics' : 'Add Lyrics', icon: 'lyrics', onSelect: () => sheets.open({ type: 'lyricsEditor', trackId: track.id }) },
-      { label: 'Sleep Timer…', icon: 'clock', onSelect: openSleepMenu },
-      { label: 'Song Info', icon: 'info', onSelect: () => sheets.open({ type: 'trackInfo', trackId: track.id }) },
-      ...(canShare
-        ? [{ label: 'Share Song Info', icon: 'share', onSelect: () => void navigator.share({ title: track.title, text: `${track.title} by ${track.artist}${track.album ? ` (${track.album})` : ''}` }).catch(() => undefined) }]
-        : []),
-      { label: 'More Options…', icon: 'more', onSelect: () => openTrackMenu(track) },
-    ],
-  });
+  const pid = playSource.get().playlistId;
+  const pl = pid ? library.get().playlistById.get(pid) : undefined;
+  const items: MenuItem[] = [
+    { label: track.favorite ? 'Unfavourite' : 'Favourite', icon: track.favorite ? 'star-fill' : 'star', onSelect: () => toggleFavorite(track.id) },
+    { label: 'Add to a Playlist…', icon: 'add-playlist', onSelect: () => sheets.open({ type: 'addToPlaylist', trackIds: [track.id] }) },
+  ];
+  if (pl) items.push({ label: 'Go to Playlist', subtitle: pl.name, icon: 'playlist', onSelect: () => goTo({ kind: 'playlist', id: pl.id }) });
+  items.push(
+    { label: 'Go to Album', icon: 'album', separatorBefore: true, onSelect: () => goTo({ kind: 'album', key: trackAlbumKey(track) }) },
+    { label: 'Go to Artist', icon: 'person', onSelect: () => goTo({ kind: 'artist', key: artistKey(track.artist) }) },
+    { label: track.hasLyrics ? 'Edit Lyrics' : 'Add Lyrics', icon: 'lyrics', separatorBefore: true, onSelect: () => sheets.open({ type: 'lyricsEditor', trackId: track.id }) },
+    { label: 'Sleep Timer…', icon: 'clock', onSelect: openSleepMenu },
+    { label: 'Edit Info & Artwork…', icon: 'edit', onSelect: () => sheets.open({ type: 'editTrack', trackId: track.id }) },
+    { label: 'Song Info', icon: 'info', onSelect: () => sheets.open({ type: 'trackInfo', trackId: track.id }) },
+  );
+  if (canShare)
+    items.push({ label: 'Share Song Info', icon: 'share', onSelect: () => void navigator.share({ title: track.title, text: `${track.title} by ${track.artist}${track.album ? ` (${track.album})` : ''}` }).catch(() => undefined) });
+  items.push({ label: 'Delete from Library', icon: 'trash', destructive: true, separatorBefore: true, onSelect: () => void removeFromLibrary([track.id]) });
+  openMenu({ title: track.title, subtitle: track.artist, art: { artId: track.artId, seed: track.album + track.artist }, items });
 }
 
 function Meta({ track, compact }: { track: Track; compact?: boolean }) {
@@ -287,9 +290,12 @@ export function NowPlaying() {
   if (track) lastTrack.current = track;
 
   // keep the page behind from reading out to screen readers while the player is open
+  const covering = open && !!track;
   useEffect(() => {
-    document.querySelector('.app-shell')?.toggleAttribute('inert', open);
-  }, [open]);
+    document.querySelector('.app-shell')?.toggleAttribute('inert', covering);
+    // the song was deleted while the player was open: close it so the app stays usable
+    if (open && !track) nowPlaying.close();
+  }, [covering, open, track]);
 
   const t = track ?? lastTrack.current;
   if (!mounted || !t) return null;

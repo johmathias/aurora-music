@@ -8,7 +8,7 @@ import { Icon } from '../components/Icon';
 import { artIdsFor } from '../components/Cards';
 import { removePlaylist } from '../actions';
 import { store } from '../lib/db';
-import { processArtwork } from '../lib/artwork';
+import { forgetArtwork, processArtwork } from '../lib/artwork';
 import { normalize, plural } from '../lib/format';
 import { addToPlaylist, createPlaylist, playlistTrackIds, updatePlaylist, useLibrary, validatePlaylistName } from '../store/library';
 import { nav, showToast, sheets } from '../store/ui';
@@ -43,6 +43,12 @@ function PlaylistForm({ id, initialTrackIds }: { id?: string; initialTrackIds?: 
     if (!file) return;
     const rec = await processArtwork(file, file.type || 'image/jpeg');
     if (!rec) return showToast('That picture could not be read. Try a JPG or PNG.', 'error');
+    try {
+      await store.put('artwork', rec);
+    } catch {
+      return showToast('Could not save that picture.', 'error');
+    }
+    forgetArtwork(rec.id);
     setNewArt(rec);
     setCoverArtId(rec.id);
   };
@@ -83,6 +89,10 @@ function PlaylistForm({ id, initialTrackIds }: { id?: string; initialTrackIds?: 
       <div className="cover-preview">
         {coverArtId ? <Artwork artId={coverArtId} seed={name} kind="full" /> : <CollageArt artIds={choices.slice(0, 4)} seed={name || 'new playlist'} kind="full" />}
       </div>
+      <button type="button" className="btn-pill block" onClick={() => photo.current?.click()}>
+        <Icon name="photo" size={19} />
+        {coverArtId && !choices.includes(coverArtId) ? 'Change Photo' : 'Choose Photo'}
+      </button>
       <Field label="Name" error={showError}>
         <input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched(true)} maxLength={70} placeholder="My Playlist" autoComplete="off" enterKeyHint="done" />
       </Field>

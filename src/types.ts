@@ -91,6 +91,7 @@ export interface Artist {
   trackIds: string[];
   albumKeys: string[];
   artId?: string;
+  ownArtId?: string; // a picture the user picked for this artist
   playCount: number;
   duration: number;
 }
