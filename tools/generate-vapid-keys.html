@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZERO OS — make push keys</title>
+<style>
+  body{font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;background:#0b0b10;color:#f5f5f7;max-width:680px;margin:0 auto;padding:28px 18px}
+  h1{font-size:26px;margin:0 0 6px} p{color:#b8b8c4} .box{background:#16161e;border:1px solid #2a2a36;border-radius:16px;padding:16px;margin:16px 0}
+  label{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9A95FF}
+  code{display:block;word-break:break-all;background:#0b0b10;border-radius:10px;padding:12px;margin:8px 0;font:14px ui-monospace,monospace;color:#fff}
+  button{background:#9A95FF;color:#07070A;border:0;border-radius:999px;padding:12px 22px;font-weight:700;font-size:16px;cursor:pointer}
+  button.s{background:#2a2a36;color:#fff;padding:8px 16px;font-size:14px} .warn{color:#FFC93D}
+</style></head><body>
+<h1>Make your push keys</h1>
+<p>This page runs on your own computer. Nothing is sent anywhere. It makes one pair of keys for ZERO OS notifications.</p>
+<button id="go">Make my keys</button>
+<div id="out" style="display:none">
+  <div class="box"><label>Public key — goes in config/config.js (safe to share)</label><code id="pub"></code><button class="s" data-c="pub">Copy</button></div>
+  <div class="box"><label>Private key — goes ONLY in Supabase Secrets</label><code id="priv"></code><button class="s" data-c="priv">Copy</button>
+  <p class="warn">Keep the private key secret. Never put it in config.js, GitHub or a chat. If it leaks, come back here and make a new pair.</p></div>
+</div>
+<script>
+const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const unb = s => Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(s.length/4)*4,'=')), c => c.charCodeAt(0));
+document.getElementById('go').onclick = async () => {
+  try {
+    if (!(window.crypto && crypto.subtle)) throw new Error('This browser blocked secure features. Open this file in Chrome or Edge.');
+    const k = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const j = await crypto.subtle.exportKey('jwk', k.privateKey);
+    const pub = new Uint8Array(65); pub[0] = 4; pub.set(unb(j.x), 1); pub.set(unb(j.y), 33);
+    document.getElementById('pub').textContent = b64u(pub);
+    document.getElementById('priv').textContent = j.d;
+    document.getElementById('out').style.display = 'block';
+  } catch (e) { alert(e.message); }
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; navigator.clipboard.writeText(document.getElementById(b.dataset.c).textContent).then(() => { b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy', 1500); }); });
+</script></body></html>
